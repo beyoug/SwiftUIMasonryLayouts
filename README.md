@@ -37,7 +37,7 @@ https://github.com/beyoug/SwiftUIMasonryLayouts.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/beyoug/SwiftUIMasonryLayouts.git", from: "1.0.0")
+    .package(url: "https://github.com/beyoug/SwiftUIMasonryLayouts.git", branch: "main")
 ]
 ```
 

@@ -1,25 +1,60 @@
-# SwiftUIMasonryLayouts API Documentation
+# SwiftUIMasonryLayouts API 使用文档
 
-## 概述
+## 📋 目录
 
-SwiftUIMasonryLayouts 是一个现代化的 SwiftUI 瀑布流布局库，基于 iOS 18.0+ Layout 协议构建，提供高性能、灵活的瀑布流布局解决方案。
+1. [快速开始](#快速开始)
+2. [核心视图组件](#核心视图组件)
+3. [配置系统](#配置系统)
+4. [使用场景指南](#使用场景指南)
+5. [高级特性](#高级特性)
+6. [性能优化](#性能优化)
+7. [最佳实践](#最佳实践)
+8. [故障排除](#故障排除)
 
-### 系统要求
-- iOS 18.0+ / macOS 15.0+ / tvOS 18.0+ / watchOS 11.0+ / visionOS 2.0+
-- Swift 6.0+
-- Xcode 16.0+
+## 快速开始
+
+### 基础导入
+
+```swift
+import SwiftUI
+import SwiftUIMasonryLayouts
+```
+
+### 最简单的瀑布流
+
+```swift
+struct ContentView: View {
+    let items = Array(1...20)
+
+    var body: some View {
+        ScrollView {
+            MasonryView.vertical(columns: .fixed(2)) {
+                ForEach(items, id: \.self) { item in
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.blue.opacity(0.7))
+                        .frame(height: CGFloat.random(in: 100...300))
+                        .overlay(Text("\(item)").foregroundColor(.white))
+                }
+            }
+            .padding()
+        }
+    }
+}
+```
 
 ## 核心视图组件
 
-### MasonryView
+### 1. MasonryView - 基础瀑布流视图
 
-基础瀑布流视图，提供简洁的 API 和高性能布局。
+适用于小到中等数据集（< 1000项），提供最简单直观的API。
+
+#### 📝 API 定义
 
 ```swift
 public struct MasonryView<Content: View>: View
 ```
 
-#### 初始化器
+#### 🔧 初始化器
 
 ```swift
 public init(
@@ -32,34 +67,18 @@ public init(
 )
 ```
 
-**参数:**
-- `axis`: 布局轴向，默认为垂直
-- `lines`: 行/列配置
-- `horizontalSpacing`: 水平间距，默认为8
-- `verticalSpacing`: 垂直间距，默认为8
-- `placementMode`: 放置模式，默认为填充
-- `content`: 视图内容构建器
-
-#### 静态方法
-
-##### vertical(columns:spacing:placementMode:content:)
-
-创建垂直瀑布流。
+#### 🚀 便捷静态方法
 
 ```swift
+// 垂直瀑布流
 static func vertical<C: View>(
     columns: MasonryLines,
     spacing: CGFloat = 8,
     placementMode: MasonryPlacementMode = .fill,
     @ViewBuilder content: @escaping () -> C
 ) -> MasonryView<C>
-```
 
-##### horizontal(rows:spacing:placementMode:content:)
-
-创建水平瀑布流。
-
-```swift
+// 水平瀑布流
 static func horizontal<C: View>(
     rows: MasonryLines,
     spacing: CGFloat = 8,
@@ -68,28 +87,58 @@ static func horizontal<C: View>(
 ) -> MasonryView<C>
 ```
 
-#### 使用示例
+#### 💡 使用示例
 
 ```swift
 // 基础垂直瀑布流
-MasonryView.vertical(columns: .fixed(2), spacing: 8) {
+MasonryView.vertical(columns: .fixed(2)) {
+    ForEach(items) { item in
+        ItemView(item: item)
+    }
+}
+
+// 自适应列数
+MasonryView.vertical(columns: .adaptive(minSize: 120)) {
     ForEach(items) { item in
         ItemView(item: item)
     }
 }
 
 // 水平瀑布流
-MasonryView.horizontal(rows: .fixed(2)) {
+ScrollView(.horizontal) {
+    MasonryView.horizontal(rows: .fixed(2)) {
+        ForEach(items) { item in
+            ItemView(item: item)
+                .frame(width: CGFloat.random(in: 120...200))
+        }
+    }
+}
+
+// 完整参数配置
+MasonryView(
+    axis: .vertical,
+    lines: .fixed(3),
+    horizontalSpacing: 12,
+    verticalSpacing: 16,
+    placementMode: .fill
+) {
     ForEach(items) { item in
         ItemView(item: item)
-            .frame(width: CGFloat.random(in: 120...200))
     }
 }
 ```
 
-### DataMasonryView
+#### 🎯 适用场景
+- 小数据集（< 100项）
+- 静态内容展示
+- 快速原型开发
+- 简单的瀑布流需求
 
-基于数据集合的瀑布流视图，适用于数据驱动的场景。
+### 2. DataMasonryView - 数据驱动瀑布流视图
+
+基于数据集合的瀑布流视图，提供更好的数据绑定和性能优化。
+
+#### 📝 API 定义
 
 ```swift
 public struct DataMasonryView<Data, ID, Content>: View
@@ -98,9 +147,10 @@ where Data: RandomAccessCollection,
       Content: View
 ```
 
-#### 初始化器
+#### 🔧 初始化器
 
 ```swift
+// 通用初始化器
 public init(
     axis: Axis = .vertical,
     lines: MasonryLines,
@@ -111,13 +161,8 @@ public init(
     id: KeyPath<Data.Element, ID>,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
-```
 
-#### 可识别数据扩展
-
-对于实现了 `Identifiable` 协议的数据类型，提供简化的初始化器：
-
-```swift
+// Identifiable 数据简化初始化器
 public init(
     axis: Axis = .vertical,
     lines: MasonryLines,
@@ -129,13 +174,10 @@ public init(
 ) where Data.Element: Identifiable, ID == Data.Element.ID
 ```
 
-#### 静态方法
-
-##### vertical(columns:spacing:placementMode:data:id:content:)
-
-创建垂直数据驱动瀑布流。
+#### 🚀 便捷静态方法
 
 ```swift
+// 垂直数据驱动瀑布流
 static func vertical<D, I, C>(
     columns: MasonryLines,
     spacing: CGFloat = 8,
@@ -144,31 +186,88 @@ static func vertical<D, I, C>(
     id: KeyPath<D.Element, I>,
     @ViewBuilder content: @escaping (D.Element) -> C
 ) -> DataMasonryView<D, I, C>
-where D: RandomAccessCollection, I: Hashable, C: View
+
+// 水平数据驱动瀑布流
+static func horizontal<D, I, C>(
+    rows: MasonryLines,
+    spacing: CGFloat = 8,
+    placementMode: MasonryPlacementMode = .fill,
+    data: D,
+    id: KeyPath<D.Element, I>,
+    @ViewBuilder content: @escaping (D.Element) -> C
+) -> DataMasonryView<D, I, C>
 ```
 
-#### 使用示例
+#### 💡 使用示例
 
 ```swift
-// 数据驱动瀑布流
+// 定义数据模型
+struct PhotoItem: Identifiable {
+    let id = UUID()
+    let url: URL
+    let title: String
+    let aspectRatio: CGFloat
+}
+
+// 基础数据驱动瀑布流
 DataMasonryView.vertical(
     columns: .fixed(3),
-    data: photoItems,
+    data: photos,
     id: \.id
 ) { photo in
-    AsyncImage(url: photo.url) { image in
-        image.resizable().aspectRatio(contentMode: .fit)
-    } placeholder: {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(Color.gray.opacity(0.3))
-            .frame(height: 200)
+    VStack(alignment: .leading) {
+        AsyncImage(url: photo.url) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } placeholder: {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 200)
+        }
+
+        Text(photo.title)
+            .font(.caption)
+            .padding(.horizontal, 8)
     }
+    .background(Color.white)
+    .cornerRadius(8)
+    .shadow(radius: 2)
+}
+
+// Identifiable 数据简化用法
+DataMasonryView.vertical(
+    columns: .adaptive(minSize: 150),
+    data: identifiableItems
+) { item in
+    ItemView(item: item)
+}
+
+// 自定义配置
+DataMasonryView(
+    axis: .vertical,
+    lines: .adaptive(minSize: 120),
+    horizontalSpacing: 12,
+    verticalSpacing: 16,
+    placementMode: .order,
+    data: articles,
+    id: \.id
+) { article in
+    ArticleCard(article: article)
 }
 ```
 
-### LazyMasonryView
+#### 🎯 适用场景
+- 中等数据集（100-1000项）
+- 数据驱动的动态内容
+- 需要数据绑定的场景
+- API数据展示
 
-虚拟化懒加载瀑布流视图，适用于大型数据集，支持数万个项目的高性能渲染。
+### 3. LazyMasonryView - 虚拟化懒加载瀑布流视图
+
+真正的虚拟化实现，只渲染可见区域内的项目，适用于大型数据集。支持数万个项目的高性能渲染。
+
+#### 📝 API 定义
 
 ```swift
 public struct LazyMasonryView<Data, ID, Content>: View
@@ -177,9 +276,10 @@ where Data: RandomAccessCollection,
       Content: View
 ```
 
-#### 初始化器
+#### 🔧 初始化器
 
 ```swift
+// 通用初始化器
 public init(
     axis: Axis = .vertical,
     lines: MasonryLines,
@@ -191,18 +291,24 @@ public init(
     estimatedItemSize: CGSize = CGSize(width: 150, height: 200),
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
+
+// Identifiable 数据简化初始化器
+public init(
+    axis: Axis = .vertical,
+    lines: MasonryLines,
+    horizontalSpacing: CGFloat = 8,
+    verticalSpacing: CGFloat = 8,
+    placementMode: MasonryPlacementMode = .fill,
+    data: Data,
+    estimatedItemSize: CGSize = CGSize(width: 150, height: 200),
+    @ViewBuilder content: @escaping (Data.Element) -> Content
+) where Data.Element: Identifiable, ID == Data.Element.ID
 ```
 
-**参数:**
-- `estimatedItemSize`: 预估项目尺寸，用于虚拟化计算
-
-#### 静态方法
-
-##### vertical(columns:spacing:placementMode:data:id:estimatedItemSize:content:)
-
-创建垂直懒加载瀑布流。
+#### 🚀 便捷静态方法
 
 ```swift
+// 垂直虚拟化瀑布流
 static func vertical<D, I, C>(
     columns: MasonryLines,
     spacing: CGFloat = 8,
@@ -212,13 +318,12 @@ static func vertical<D, I, C>(
     estimatedItemSize: CGSize = CGSize(width: 150, height: 200),
     @ViewBuilder content: @escaping (D.Element) -> C
 ) -> LazyMasonryView<D, I, C>
-where D: RandomAccessCollection, I: Hashable, C: View
 ```
 
-#### 使用示例
+#### 💡 使用示例
 
 ```swift
-// 虚拟化懒加载瀑布流
+// 基础虚拟化瀑布流
 LazyMasonryView.vertical(
     columns: .adaptive(minSize: 150),
     data: largeDataSet,
@@ -227,17 +332,71 @@ LazyMasonryView.vertical(
 ) { item in
     ItemView(item: item)
 }
+
+// 动态预估尺寸
+struct PhotoItem {
+    let aspectRatio: CGFloat
+
+    var estimatedSize: CGSize {
+        let width: CGFloat = 150
+        return CGSize(width: width, height: width / aspectRatio)
+    }
+}
+
+LazyMasonryView.vertical(
+    columns: .fixed(2),
+    data: photos,
+    id: \.id,
+    estimatedItemSize: photos.first?.estimatedSize ?? CGSize(width: 150, height: 200)
+) { photo in
+    PhotoView(photo: photo)
+}
+
+// 大数据集示例
+let massiveDataSet = Array(1...50000)
+LazyMasonryView.vertical(
+    columns: .fixed(3),
+    data: massiveDataSet,
+    id: \.self,
+    estimatedItemSize: CGSize(width: 120, height: 180)
+) { item in
+    Text("Item \(item)")
+        .frame(height: CGFloat.random(in: 100...250))
+        .background(Color.blue.opacity(0.3))
+        .cornerRadius(8)
+}
 ```
 
-### ResponsiveMasonryView
+#### ⚡ 虚拟化特性
 
-根据屏幕宽度自动调整布局的响应式瀑布流视图。
+- **智能缓存**：自动缓存布局计算结果
+- **增量更新**：只更新可见区域的变化
+- **内存管理**：主动监控内存使用，自动清理
+- **并发安全**：使用 Actor 模式确保线程安全
+
+#### 🎯 适用场景
+- 大数据集（> 1000项）
+- 无限滚动列表
+- 图片画廊
+- 社交媒体动态
+- 商品列表
+
+#### ⚠️ 重要提示
+- `estimatedItemSize` 越准确，性能越好
+- 避免在虚拟化视图中使用复杂的动画
+- 确保数据源的稳定性
+
+### 4. ResponsiveMasonryView - 响应式瀑布流视图
+
+根据屏幕宽度自动调整布局的响应式瀑布流视图，适用于需要适配不同设备的场景。
+
+#### 📝 API 定义
 
 ```swift
 public struct ResponsiveMasonryView<Content: View>: View
 ```
 
-#### 初始化器
+#### 🔧 初始化器
 
 ```swift
 public init(
@@ -246,40 +405,30 @@ public init(
 )
 ```
 
-**参数:**
-- `breakpoints`: 响应式断点配置，键为屏幕宽度，值为对应的配置
-
-#### 静态方法
-
-##### withCommonBreakpoints(content:)
-
-使用通用响应式断点创建响应式瀑布流。
+#### 🚀 便捷静态方法
 
 ```swift
+// 使用通用响应式断点
 static func withCommonBreakpoints<C: View>(
     @ViewBuilder content: @escaping () -> C
 ) -> ResponsiveMasonryView<C>
-```
 
-##### deviceAdaptive(content:)
-
-使用设备特定断点创建响应式瀑布流。
-
-```swift
+// 使用设备特定断点
 static func deviceAdaptive<C: View>(
     @ViewBuilder content: @escaping () -> C
 ) -> ResponsiveMasonryView<C>
 ```
 
-#### 使用示例
+#### 💡 使用示例
 
 ```swift
-// 响应式瀑布流
+// 自定义断点配置
 ResponsiveMasonryView(
     breakpoints: [
-        0: .vertical(columns: .fixed(1)),      // 小屏幕
-        400: .vertical(columns: .fixed(2)),    // 中等屏幕
-        800: .vertical(columns: .fixed(3))     // 大屏幕
+        0: .vertical(columns: .fixed(1)),      // 小屏幕：单列
+        400: .vertical(columns: .fixed(2)),    // 中等屏幕：双列
+        800: .vertical(columns: .fixed(3)),    // 大屏幕：三列
+        1200: .vertical(columns: .fixed(4))    // 超大屏幕：四列
     ]
 ) {
     ForEach(items) { item in
@@ -287,35 +436,64 @@ ResponsiveMasonryView(
     }
 }
 
-// 使用预设断点
+// 使用预设断点（推荐）
 ResponsiveMasonryView.withCommonBreakpoints {
-    ForEach(items) { item in
-        ItemView(item: item)
+    ForEach(articles) { article in
+        ArticleCard(article: article)
+    }
+}
+
+// 设备特定断点
+ResponsiveMasonryView.deviceAdaptive {
+    ForEach(photos) { photo in
+        PhotoView(photo: photo)
     }
 }
 ```
 
-## 配置类型
-
-### MasonryConfiguration
-
-瀑布流布局的完整配置。
+#### 📱 预设断点
 
 ```swift
-public struct MasonryConfiguration: Sendable
+// 通用断点
+commonBreakpoints = [
+    0: .singleColumn,      // 0-400pt
+    400: .twoColumns,      // 400-800pt
+    800: .threeColumns     // 800pt+
+]
+
+// 设备特定断点（iOS）
+deviceBreakpoints = [
+    0: .singleColumn,      // iPhone 竖屏
+    375: .twoColumns,      // iPhone 横屏
+    768: .threeColumns     // iPad
+]
 ```
 
-#### 属性
+#### 🎯 适用场景
+- 多设备适配需求
+- 响应式网页风格应用
+- 需要根据屏幕尺寸调整的布局
+- 通用组件开发
+
+## 配置系统
+
+### 1. MasonryConfiguration - 瀑布流配置
+
+完整的瀑布流布局配置，包含所有布局参数。
+
+#### 📝 API 定义
 
 ```swift
-public let axis: Axis                           // 布局轴向
-public let lines: MasonryLines                  // 行或列的配置
-public let horizontalSpacing: CGFloat           // 水平间距
-public let verticalSpacing: CGFloat             // 垂直间距
-public let placementMode: MasonryPlacementMode  // 放置模式
+public struct MasonryConfiguration: Sendable {
+    public let axis: Axis                           // 布局轴向
+    public let lines: MasonryLines                  // 行或列的配置
+    public let horizontalSpacing: CGFloat           // 水平间距
+    public let verticalSpacing: CGFloat             // 垂直间距
+    public let placementMode: MasonryPlacementMode  // 放置模式
+}
 ```
 
-#### 初始化器
+#### 🔧 初始化器
 
 ```swift
 public init(
@@ -327,31 +505,17 @@ public init(
 )
 ```
 
-#### 静态属性
+#### 🚀 便捷静态方法
 
 ```swift
-public static let `default`: MasonryConfiguration  // 默认配置（2列垂直布局）
-```
-
-#### 静态方法
-
-##### vertical(columns:spacing:placementMode:)
-
-创建垂直瀑布流配置。
-
-```swift
+// 创建垂直瀑布流配置
 static func vertical(
     columns: MasonryLines,
     spacing: CGFloat = 8,
     placementMode: MasonryPlacementMode = .fill
 ) -> MasonryConfiguration
-```
 
-##### horizontal(rows:spacing:placementMode:)
-
-创建水平瀑布流配置。
-
-```swift
+// 创建水平瀑布流配置
 static func horizontal(
     rows: MasonryLines,
     spacing: CGFloat = 8,
@@ -359,350 +523,480 @@ static func horizontal(
 ) -> MasonryConfiguration
 ```
 
-#### 实例方法
-
-##### withSpacing(horizontal:vertical:)
-
-修改间距。
+#### 🔄 链式配置方法
 
 ```swift
+// 修改间距
 func withSpacing(
     horizontal: CGFloat? = nil,
     vertical: CGFloat? = nil
 ) -> MasonryConfiguration
-```
 
-##### withPlacementMode(_:)
-
-修改放置模式。
-
-```swift
+// 修改放置模式
 func withPlacementMode(_ mode: MasonryPlacementMode) -> MasonryConfiguration
 ```
 
-### MasonryLines
+#### 💡 使用示例
+
+```swift
+// 基础配置
+let config = MasonryConfiguration.vertical(
+    columns: .adaptive(minSize: 150),
+    spacing: 12,
+    placementMode: .fill
+)
+
+// 链式配置
+let customConfig = MasonryConfiguration.threeColumns
+    .withSpacing(horizontal: 16, vertical: 20)
+    .withPlacementMode(.order)
+
+// 使用配置创建MasonryView
+MasonryView(
+    axis: config.axis,
+    lines: config.lines,
+    horizontalSpacing: config.horizontalSpacing,
+    verticalSpacing: config.verticalSpacing,
+    placementMode: config.placementMode
+) {
+    ForEach(items) { item in
+        ItemView(item: item)
+    }
+}
+```
+
+### 2. MasonryLines - 行列配置
 
 定义瀑布流视图中行或列数量的配置。
 
-```swift
-public enum MasonryLines: Sendable, Equatable, Hashable
-```
-
-#### 枚举值
+#### 📝 API 定义
 
 ```swift
-case adaptive(sizeConstraint: AdaptiveSizeConstraint)  // 可变数量的行或列
-case fixed(Int)                                        // 固定数量的行或列
-```
+public enum MasonryLines: Sendable, Equatable, Hashable {
+    case adaptive(sizeConstraint: AdaptiveSizeConstraint)  // 自适应行或列
+    case fixed(Int)                                        // 固定行或列
+}
 
-#### 嵌套类型
-
-##### AdaptiveSizeConstraint
-
-约束瀑布流视图中自适应行或列边界的常量。
-
-```swift
 public enum AdaptiveSizeConstraint: Equatable, Sendable, Hashable {
-    case min(CGFloat)  // 给定轴上行或列的最小尺寸
-    case max(CGFloat)  // 给定轴上行或列的最大尺寸
+    case min(CGFloat)  // 最小尺寸约束
+    case max(CGFloat)  // 最大尺寸约束
 }
 ```
 
-#### 静态方法
-
-##### adaptive(minSize:)
-
-创建具有最小尺寸约束的自适应配置。
+#### 🚀 便捷静态方法
 
 ```swift
+// 自适应配置
 static func adaptive(minSize: CGFloat) -> MasonryLines
-```
-
-##### adaptive(maxSize:)
-
-创建具有最大尺寸约束的自适应配置。
-
-```swift
 static func adaptive(maxSize: CGFloat) -> MasonryLines
-```
 
-##### fixedCount(_:)
-
-创建固定数量的行或列配置（带验证）。
-
-```swift
+// 固定配置（带验证）
 static func fixedCount(_ count: Int) -> MasonryLines
 ```
 
-#### 使用示例
+#### 💡 使用示例
 
 ```swift
+// 固定列数
 .fixed(2)                    // 固定2列
-.adaptive(minSize: 120)      // 自适应，最小宽度120
-.adaptive(maxSize: 200)      // 自适应，最大宽度200
-.fixedCount(3)              // 固定3列（带验证）
+.fixedCount(3)              // 固定3列（带验证，推荐）
+
+// 自适应列数
+.adaptive(minSize: 120)      // 自适应，最小宽度120pt
+.adaptive(maxSize: 200)      // 自适应，最大宽度200pt
+
+// 实际应用
+MasonryView.vertical(columns: .adaptive(minSize: 150)) {
+    // 根据屏幕宽度自动计算列数，每列最小150pt
+}
+
+MasonryView.vertical(columns: .fixed(3)) {
+    // 固定3列布局
+}
 ```
 
-### MasonryPlacementMode
+### 3. MasonryPlacementMode - 放置模式
 
 定义瀑布流子视图在可用空间中如何放置的模式。
 
-```swift
-public enum MasonryPlacementMode: Hashable, CaseIterable, Sendable
-```
-
-#### 枚举值
+#### 📝 API 定义
 
 ```swift
-case fill   // 将每个子视图放置在可用空间最多的行或列中
-case order  // 按视图树顺序放置每个子视图
+public enum MasonryPlacementMode: Hashable, CaseIterable, Sendable {
+    case fill   // 填充模式：智能放置到空间最多的列中
+    case order  // 顺序模式：按视图树顺序依次放置
+}
 ```
 
-#### 使用示例
+#### 💡 使用示例和对比
 
 ```swift
-.fill    // 填充模式：智能分配到空间最多的列
-.order   // 顺序模式：按顺序依次放置
+// 填充模式（推荐）- 视觉效果更好
+MasonryView.vertical(
+    columns: .fixed(2),
+    placementMode: .fill
+) {
+    // 项目会被放置到当前空间最多的列中
+    // 结果：更紧凑、更美观的布局
+}
+
+// 顺序模式 - 保持逻辑顺序
+MasonryView.vertical(
+    columns: .fixed(2),
+    placementMode: .order
+) {
+    // 项目按照在视图树中的顺序依次放置
+    // 结果：保持阅读顺序，但可能有空隙
+}
 ```
 
-## 预设配置
+#### 🎯 选择指南
 
-### 基础预设
+| 模式 | 适用场景 | 优点 | 缺点 |
+|------|---------|------|------|
+| `.fill` | 图片展示、卡片布局 | 视觉效果好、空间利用率高 | 可能打乱逻辑顺序 |
+| `.order` | 文章列表、时间线 | 保持逻辑顺序 | 可能有视觉空隙 |
+
+### 4. 预设配置
+
+库提供了丰富的预设配置，可以快速开始开发。
+
+#### 📋 基础预设
 
 ```swift
 // 垂直布局预设
-public static let singleColumn: MasonryConfiguration    // 单列垂直布局
-public static let twoColumns: MasonryConfiguration      // 双列垂直布局
-public static let threeColumns: MasonryConfiguration    // 三列垂直布局
-public static let fourColumns: MasonryConfiguration     // 四列垂直布局
-public static let adaptiveColumns: MasonryConfiguration // 自适应布局（最小120pt列宽）
+MasonryConfiguration.singleColumn    // 单列垂直布局
+MasonryConfiguration.twoColumns      // 双列垂直布局
+MasonryConfiguration.threeColumns    // 三列垂直布局
+MasonryConfiguration.fourColumns     // 四列垂直布局
+MasonryConfiguration.adaptiveColumns // 自适应布局（最小120pt列宽）
 
 // 水平布局预设
-public static let singleRow: MasonryConfiguration       // 单行水平布局
-public static let twoRows: MasonryConfiguration         // 双行水平布局
-public static let threeRows: MasonryConfiguration       // 三行水平布局
+MasonryConfiguration.singleRow       // 单行水平布局
+MasonryConfiguration.twoRows         // 双行水平布局
+MasonryConfiguration.threeRows       // 三行水平布局
 ```
 
-### 响应式断点预设
+#### 📱 响应式断点预设
 
 ```swift
 // 通用响应式断点
-public static let commonBreakpoints: [CGFloat: MasonryConfiguration]
+MasonryConfiguration.commonBreakpoints = [
+    0: .singleColumn,      // 手机竖屏
+    480: .twoColumns,      // 手机横屏 / 小平板
+    768: .threeColumns,    // 平板
+    1024: .fourColumns     // 桌面
+]
 
-// 设备特定响应式断点
-public static var deviceBreakpoints: [CGFloat: MasonryConfiguration]
+// 设备特定响应式断点（iOS）
+MasonryConfiguration.deviceBreakpoints = [
+    0: .singleColumn,      // iPhone 竖屏
+    375: .twoColumns,      // iPhone 横屏
+    768: .threeColumns     // iPad
+]
 
-// 小屏幕紧凑断点
-public static let compactBreakpoints: [CGFloat: MasonryConfiguration]
+// 紧凑断点（适用于小屏幕）
+MasonryConfiguration.compactBreakpoints = [
+    0: .singleColumn,
+    320: .twoColumns
+]
 
-// 大屏幕扩展断点
-public static let extendedBreakpoints: [CGFloat: MasonryConfiguration]
+// 扩展断点（适用于大屏幕）
+MasonryConfiguration.extendedBreakpoints = [
+    0: .singleColumn,                              // 最小
+    480: .twoColumns,                              // 小
+    768: .threeColumns,                            // 中
+    1024: .fourColumns,                            // 大
+    1440: MasonryConfiguration(lines: .fixed(5)),  // 超大
+    1920: MasonryConfiguration(lines: .fixed(6))   // 极大
+]
 ```
 
-## 核心布局引擎
-
-### MasonryLayout
-
-基于 iOS 18.0+ Layout 协议的高性能瀑布流布局引擎。
+#### 💡 预设使用示例
 
 ```swift
-public struct MasonryLayout: Layout
-```
-
-#### 初始化器
-
-```swift
-public init(
-    axis: Axis = .vertical,
-    lines: MasonryLines,
-    horizontalSpacing: CGFloat = 8,
-    verticalSpacing: CGFloat = 8,
-    placementMode: MasonryPlacementMode = .fill
-)
-```
-
-#### Layout 协议实现
-
-```swift
-public func sizeThatFits(
-    proposal: ProposedViewSize,
-    subviews: Subviews,
-    cache: inout LayoutCache
-) -> CGSize
-
-public func placeSubviews(
-    in bounds: CGRect,
-    proposal: ProposedViewSize,
-    subviews: Subviews,
-    cache: inout LayoutCache
-)
-
-public func makeCache(subviews: Subviews) -> LayoutCache
-```
-
-## 便捷类型别名
-
-为了提供更简洁的 API，库提供了以下类型别名：
-
-```swift
-public typealias Masonry = MasonryView              // 瀑布流视图的便捷别名
-public typealias LazyMasonry = LazyMasonryView      // 懒加载瀑布流视图的便捷别名
-public typealias ResponsiveMasonry = ResponsiveMasonryView  // 响应式瀑布流视图的便捷别名
-```
-
-#### 使用示例
-
-```swift
-// 使用别名的简洁语法
-Masonry.vertical(columns: .fixed(2)) { ... }
-LazyMasonry.vertical(columns: .fixed(2)) { ... }
-ResponsiveMasonry.withCommonBreakpoints { ... }
-```
-
-## 库信息
-
-### SwiftUIMasonryLayouts
-
-库的主要命名空间和版本信息。
-
-```swift
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public enum SwiftUIMasonryLayouts {
-    /// 库版本号
-    public static let version = "2.0.0"
-}
-```
-
-## 最佳实践
-
-### 性能优化建议
-
-1. **选择合适的视图类型**：
-   - 小数据集（< 100项）：使用 `MasonryView` 或 `DataMasonryView`
-   - 大数据集（> 1000项）：使用 `LazyMasonryView`
-   - 响应式需求：使用 `ResponsiveMasonryView`
-
-2. **虚拟化配置**：
-   - 为 `LazyMasonryView` 提供准确的 `estimatedItemSize`
-   - 避免在虚拟化视图中使用复杂的动画
-
-3. **布局配置**：
-   - 使用预设配置提高开发效率
-   - 根据内容特点选择合适的放置模式
-
-### 常见用法模式
-
-```swift
-// 图片网格
-LazyMasonryView.vertical(
-    columns: .adaptive(minSize: 150),
-    data: photos,
-    id: \.id
-) { photo in
-    AsyncImage(url: photo.url)
-        .aspectRatio(contentMode: .fit)
-}
-
-// 响应式卡片布局
-ResponsiveMasonryView.withCommonBreakpoints {
-    ForEach(articles) { article in
-        ArticleCard(article: article)
+// 使用基础预设
+let twoColumnsConfig = MasonryConfiguration.twoColumns
+MasonryView(
+    axis: twoColumnsConfig.axis,
+    lines: twoColumnsConfig.lines,
+    horizontalSpacing: twoColumnsConfig.horizontalSpacing,
+    verticalSpacing: twoColumnsConfig.verticalSpacing,
+    placementMode: twoColumnsConfig.placementMode
+) {
+    ForEach(items) { item in
+        ItemView(item: item)
     }
 }
 
-// 自定义间距的紧密布局
-MasonryView.vertical(
-    columns: .fixed(3),
-    spacing: 4,
-    placementMode: .fill
+// 修改预设
+let customConfig = MasonryConfiguration.threeColumns
+    .withSpacing(horizontal: 16, vertical: 20)
+
+// 使用响应式预设
+ResponsiveMasonryView(breakpoints: MasonryConfiguration.commonBreakpoints) {
+    ForEach(items) { item in
+        ItemView(item: item)
+    }
+}
+```
+
+## 使用场景指南
+
+### 🎯 视图类型选择指南
+
+| 视图类型 | 数据量 | 适用场景 | 性能特点 | 推荐指数 |
+|---------|--------|---------|---------|---------|
+| `MasonryView` | < 100项 | 静态内容、快速原型 | 简单直接 | ⭐⭐⭐⭐⭐ |
+| `DataMasonryView` | 100-1000项 | 数据驱动、动态内容 | 更好的数据绑定 | ⭐⭐⭐⭐ |
+| `LazyMasonryView` | > 1000项 | 大数据集、无限滚动 | 虚拟化渲染 | ⭐⭐⭐⭐⭐ |
+| `ResponsiveMasonryView` | 任意 | 多设备适配 | 自动响应 | ⭐⭐⭐⭐ |
+
+### 📱 常见使用场景
+
+#### 1. 图片画廊
+
+```swift
+// 适用于照片展示、作品集等
+LazyMasonryView.vertical(
+    columns: .adaptive(minSize: 150),
+    data: photos,
+    id: \.id,
+    estimatedItemSize: CGSize(width: 150, height: 200)
+) { photo in
+    AsyncImage(url: photo.url) { image in
+        image
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .clipped()
+    } placeholder: {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.gray.opacity(0.3))
+            .frame(height: 200)
+    }
+    .cornerRadius(8)
+}
+```
+
+#### 2. 商品列表
+
+```swift
+// 适用于电商应用、商品展示
+DataMasonryView.vertical(
+    columns: .fixed(2),
+    data: products,
+    id: \.id
+) { product in
+    VStack(alignment: .leading, spacing: 8) {
+        AsyncImage(url: product.imageURL) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } placeholder: {
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 150)
+        }
+
+        VStack(alignment: .leading, spacing: 4) {
+            Text(product.name)
+                .font(.headline)
+                .lineLimit(2)
+
+            Text("$\(product.price, specifier: "%.2f")")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 8)
+    }
+    .background(Color.white)
+    .cornerRadius(12)
+    .shadow(radius: 4)
+}
+```
+
+#### 3. 社交媒体动态
+
+```swift
+// 适用于社交应用、动态流
+LazyMasonryView.vertical(
+    columns: .fixed(1),
+    data: posts,
+    id: \.id,
+    estimatedItemSize: CGSize(width: 350, height: 300)
+) { post in
+    VStack(alignment: .leading, spacing: 12) {
+        // 用户信息
+        HStack {
+            AsyncImage(url: post.user.avatarURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Circle().fill(Color.gray.opacity(0.3))
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
+
+            VStack(alignment: .leading) {
+                Text(post.user.name)
+                    .font(.headline)
+                Text(post.timestamp, style: .relative)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+
+        // 内容
+        Text(post.content)
+            .font(.body)
+
+        // 图片（如果有）
+        if let imageURL = post.imageURL {
+            AsyncImage(url: imageURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 200)
+            }
+            .cornerRadius(8)
+        }
+
+        // 互动按钮
+        HStack {
+            Button("👍 \(post.likes)") { }
+            Button("💬 \(post.comments)") { }
+            Button("🔄 \(post.shares)") { }
+            Spacer()
+        }
+        .font(.caption)
+    }
+    .padding()
+    .background(Color.white)
+    .cornerRadius(12)
+    .shadow(radius: 2)
+}
+```
+
+#### 4. 文章卡片
+
+```swift
+// 适用于新闻应用、博客等
+ResponsiveMasonryView.withCommonBreakpoints {
+    ForEach(articles) { article in
+        VStack(alignment: .leading, spacing: 12) {
+            // 特色图片
+            AsyncImage(url: article.featuredImageURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 120)
+            }
+            .frame(height: 120)
+            .clipped()
+
+            VStack(alignment: .leading, spacing: 8) {
+                // 分类标签
+                Text(article.category)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(4)
+
+                // 标题
+                Text(article.title)
+                    .font(.headline)
+                    .lineLimit(3)
+
+                // 摘要
+                Text(article.summary)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .lineLimit(4)
+
+                // 元信息
+                HStack {
+                    Text(article.author)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Text(article.publishDate, style: .date)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+        }
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(radius: 4)
+    }
+}
+```
+
+#### 5. 响应式设计
+
+```swift
+// 适用于需要适配多种屏幕尺寸的应用
+ResponsiveMasonryView(
+    breakpoints: [
+        0: .vertical(columns: .fixed(1)),      // 手机竖屏
+        400: .vertical(columns: .fixed(2)),    // 手机横屏/小平板
+        768: .vertical(columns: .fixed(3)),    // 平板
+        1024: .vertical(columns: .fixed(4))    // 大平板/桌面
+    ]
 ) {
     ForEach(items) { item in
-        CompactItemView(item: item)
+        ItemView(item: item)
     }
 }
 ```
 
 ## 高级特性
 
-### 虚拟化机制
+### 🚀 虚拟化机制
 
 `LazyMasonryView` 实现了真正的虚拟化渲染：
 
+#### 核心特性
 - **智能缓存**：自动缓存布局计算结果，避免重复计算
 - **增量更新**：只更新可见区域的变化，提升滚动性能
 - **内存管理**：主动监控内存使用，自动清理过期缓存
 - **并发安全**：使用 Actor 模式确保线程安全的状态管理
 
-#### 虚拟化配置
-
+#### 缓存策略
 ```swift
-LazyMasonryView(
-    axis: .vertical,
-    lines: .adaptive(minSize: 150),
-    data: largeDataSet,
-    id: \.id,
-    estimatedItemSize: CGSize(width: 150, height: 200)  // 关键：准确的预估尺寸
-) { item in
-    ItemView(item: item)
-}
+// 多级缓存机制
+1. 布局缓存：缓存布局计算结果
+2. 可见项缓存：缓存当前可见的项目
+3. 空间分区：使用空间分区优化查询性能
 ```
 
-### 缓存策略
-
-库实现了多级缓存机制：
-
-1. **布局缓存**：
-   - 缓存布局计算结果
-   - 基于配置参数的智能缓存键
-   - 自动失效机制
-
-2. **可见项缓存**：
-   - 缓存当前可见的项目
-   - 增量更新策略
-   - 缓冲区优化
-
-3. **空间分区**：
-   - 使用空间分区优化查询性能
-   - 二分查找算法
-   - Y轴范围查询优化
-
-#### 缓存效率监控
-
+#### 内存优化
 ```swift
-// 在 DEBUG 模式下，库会输出缓存效率信息
-// 🎯 SwiftUIMasonryLayouts: 缓存命中，效率: 85.2%
+// 自动内存管理
+- 跨平台内存监控（iOS/macOS: mach API，其他平台: 估算）
+- 渐进式清理：内存压力时自动清理缓存
+- 容量限制：防止缓存无限增长
 ```
 
-### 内存优化
-
-#### 自动内存管理
-
-- **跨平台内存监控**：
-  - iOS/macOS：使用 mach API 精确监控
-  - watchOS/tvOS/visionOS：使用估算方法
-
-- **渐进式清理**：
-  - 内存压力时自动清理缓存
-  - 保留最近使用的项目
-  - 智能容量调整
-
-- **容量限制**：
-  - 默认最大缓存 50,000 项
-  - 内存压力阈值 100MB
-  - 防止缓存无限增长
-
-#### 内存优化配置
-
-```swift
-// 库会根据设备内存自动调整缓存策略
-// 小内存设备：更激进的清理策略
-// 大内存设备：更宽松的缓存策略
-```
-
-### 并发安全设计
+### 🔧 并发安全设计
 
 #### Actor-based 并发控制
-
 ```swift
 // 内部实现的并发控制器
 private actor ConcurrencyController {
@@ -719,110 +1013,44 @@ private actor ConcurrencyController {
 ```
 
 #### 任务序列化
-
 - **序列号机制**：防止过期任务的结果被应用
 - **取消检查**：支持任务取消和超时
 - **状态验证**：确保数据一致性
 
-## 错误处理
+### 📊 响应式系统
 
-### 自动修正机制
-
-库会自动修正无效的配置参数：
-
+#### 断点系统
 ```swift
-// 负间距自动修正
-MasonryConfiguration(
-    lines: .fixed(2),
-    horizontalSpacing: -10,  // ⚠️ 自动修正为 0
-    verticalSpacing: -5      // ⚠️ 自动修正为 0
-)
-
-// 无效行列数自动修正
-MasonryLines.fixedCount(0)           // ⚠️ 自动修正为 1
-MasonryLines.adaptive(minSize: -100) // ⚠️ 自动修正为 1
+// 断点配置示例
+let breakpoints: [CGFloat: MasonryConfiguration] = [
+    0: .singleColumn,      // 手机竖屏
+    480: .twoColumns,      // 手机横屏 / 小平板
+    768: .threeColumns,    // 平板
+    1024: .fourColumns     // 桌面
+]
 ```
 
-### 调试支持
-
-在 DEBUG 模式下，库提供详细的调试信息：
-
+#### 平台适配
 ```swift
-// 配置修正警告
-⚠️ SwiftUIMasonryLayouts: 水平间距不能为负数，已自动修正为0
-
-// 缓存效率统计
-🎯 SwiftUIMasonryLayouts: 缓存命中，效率: 85.2%
-
-// 内存使用警告
-⚠️ SwiftUIMasonryLayouts: 内存使用量(120MB)超过阈值(100MB)，执行内存清理
-
-// 性能警告
-⚠️ SwiftUIMasonryLayouts: 项目数量(60000)超过最大缓存限制(50000)，可能影响性能
+// 不同平台的默认断点
+#if os(iOS)
+static var deviceBreakpoints = [
+    0: .singleColumn,      // iPhone 竖屏
+    375: .twoColumns,      // iPhone 横屏
+    768: .threeColumns     // iPad
+]
+#elseif os(macOS)
+static var deviceBreakpoints = [
+    0: .twoColumns,        // 小窗口
+    800: .threeColumns,    // 中等窗口
+    1200: .fourColumns     // 大窗口
+]
+#endif
 ```
 
-### 错误恢复策略
+## 性能优化
 
-```swift
-// 虚拟化错误类型
-private enum VirtualizationError: Error, LocalizedError {
-    case invalidContainerSize    // 容器尺寸无效
-    case invalidEstimatedSize   // 估计项目尺寸无效
-    case invalidLineCount       // 无效的行数配置
-    case cancelled              // 布局计算被取消
-    case memoryAllocationFailed // 内存分配失败
-    case invalidConfiguration   // 无效的配置参数
-    case dataCorruption        // 数据损坏或不一致
-}
-```
-
-## 平台适配
-
-### iOS 特性
-
-- **完整手势支持**：支持所有 iOS 手势和交互
-- **精确内存监控**：使用 mach API 进行内存监控
-- **设备适配**：针对不同 iPhone/iPad 尺寸优化
-
-#### iOS 响应式断点
-
-```swift
-static var deviceBreakpoints: [CGFloat: MasonryConfiguration] {
-    [
-        0: .singleColumn,      // iPhone 竖屏
-        375: .twoColumns,      // iPhone 横屏
-        768: .threeColumns     // iPad
-    ]
-}
-```
-
-### macOS 特性
-
-- **窗口大小适配**：支持任意窗口尺寸
-- **鼠标交互**：优化鼠标滚动和点击
-- **多窗口支持**：每个窗口独立的布局状态
-
-#### macOS 响应式断点
-
-```swift
-static var deviceBreakpoints: [CGFloat: MasonryConfiguration] {
-    [
-        0: .twoColumns,        // 小窗口
-        800: .threeColumns,    // 中等窗口
-        1200: .fourColumns     // 大窗口
-    ]
-}
-```
-
-### watchOS/tvOS/visionOS 适配
-
-- **内存优化**：使用估算方法进行内存监控
-- **性能调优**：针对平台特点优化参数
-- **交互适配**：适配各平台的交互模式
-
-## 性能指标
-
-### 基准测试结果
+### ⚡ 性能基准
 
 | 数据集大小 | 渲染时间 | 内存使用 | 缓存命中率 |
 |-----------|---------|---------|-----------|
@@ -830,218 +1058,113 @@ static var deviceBreakpoints: [CGFloat: MasonryConfiguration] {
 | 100-1000项| < 33ms  | < 50MB  | 85%+     |
 | > 1000项  | 恒定    | < 100MB | 80%+     |
 
-### 性能优化技巧
+### 🎯 优化策略
 
-1. **预估尺寸准确性**：
-   ```swift
-   // ✅ 好的做法：提供准确的预估尺寸
-   LazyMasonryView(
-       estimatedItemSize: CGSize(width: 150, height: 180) // 接近实际尺寸
-   )
-
-   // ❌ 避免：预估尺寸差异过大
-   LazyMasonryView(
-       estimatedItemSize: CGSize(width: 100, height: 100) // 实际尺寸 200x300
-   )
-   ```
-
-2. **稳定的数据源**：
-   ```swift
-   // ✅ 好的做法：使用稳定的 ID
-   struct Item: Identifiable {
-       let id = UUID()  // 稳定的唯一 ID
-   }
-
-   // ❌ 避免：使用不稳定的 ID
-   struct Item {
-       var id: Int { hashValue }  // 可能变化的 ID
-   }
-   ```
-
-3. **合理的更新频率**：
-   ```swift
-   // ✅ 好的做法：批量更新
-   items.append(contentsOf: newItems)
-
-   // ❌ 避免：频繁的单项更新
-   for item in newItems {
-       items.append(item)  // 每次都触发重新布局
-   }
-   ```
-
-## 迁移指南
-
-### 从 LazyVGrid 迁移
-
-SwiftUI 的 `LazyVGrid` 可以轻松迁移到 `MasonryView`：
-
+#### 1. 选择合适的视图类型
 ```swift
-// 原来的 LazyVGrid
-LazyVGrid(columns: [
-    GridItem(.adaptive(minimum: 120)),
-    GridItem(.adaptive(minimum: 120))
-]) {
-    ForEach(items) { item in
-        ItemView(item: item)
-    }
-}
-
-// 迁移到 MasonryView
-MasonryView.vertical(columns: .adaptive(minSize: 120)) {
-    ForEach(items) { item in
-        ItemView(item: item)
-    }
+// 根据数据量选择
+if items.count < 100 {
+    // 使用 MasonryView
+    MasonryView.vertical(columns: .fixed(2)) { ... }
+} else if items.count < 1000 {
+    // 使用 DataMasonryView
+    DataMasonryView.vertical(columns: .fixed(2), data: items, id: \.id) { ... }
+} else {
+    // 使用 LazyMasonryView
+    LazyMasonryView.vertical(columns: .fixed(2), data: items, id: \.id) { ... }
 }
 ```
 
-#### 迁移对照表
-
-| LazyVGrid | MasonryView |
-|-----------|-------------|
-| `GridItem(.fixed(width))` | `MasonryLines.fixed(count)` |
-| `GridItem(.adaptive(minimum: size))` | `MasonryLines.adaptive(minSize: size)` |
-| `GridItem(.flexible())` | `MasonryLines.adaptive(minSize: 120)` |
-| `spacing` 参数 | `spacing` 参数 |
-
-### 从其他瀑布流库迁移
-
-#### 从 WaterfallGrid 迁移
-
+#### 2. 优化预估尺寸
 ```swift
-// WaterfallGrid
-WaterfallGrid(items) { item in
-    ItemView(item: item)
-}
-.gridStyle(
-    columnsInPortrait: 2,
-    columnsInLandscape: 3,
-    spacing: 8
-)
+// ✅ 好的做法：提供准确的预估尺寸
+struct PhotoItem {
+    let aspectRatio: CGFloat
 
-// SwiftUIMasonryLayouts
-ResponsiveMasonryView(
-    breakpoints: [
-        0: .vertical(columns: .fixed(2)),    // Portrait
-        600: .vertical(columns: .fixed(3))   // Landscape
-    ]
-) {
-    ForEach(items) { item in
-        ItemView(item: item)
+    var estimatedSize: CGSize {
+        let width: CGFloat = 150
+        return CGSize(width: width, height: width / aspectRatio)
     }
 }
-```
 
-#### 从 ASCollectionNode 迁移
-
-```swift
-// ASCollectionNode (Texture)
-let layout = ASCollectionLayout()
-layout.scrollableDirections = [.up, .down]
-
-// SwiftUIMasonryLayouts
 LazyMasonryView.vertical(
-    columns: .adaptive(minSize: 150),
-    data: items,
-    id: \.id
-) { item in
-    ItemView(item: item)
+    columns: .fixed(2),
+    data: photos,
+    id: \.id,
+    estimatedItemSize: photos.first?.estimatedSize ?? CGSize(width: 150, height: 200)
+) { photo in
+    PhotoView(photo: photo)
+}
+
+// ❌ 避免：预估尺寸差异过大
+LazyMasonryView.vertical(
+    estimatedItemSize: CGSize(width: 100, height: 100) // 实际尺寸可能是 200x300
+)
+```
+
+#### 3. 数据源优化
+```swift
+// ✅ 使用稳定的 ID
+struct Item: Identifiable {
+    let id = UUID()  // 稳定的唯一 ID
+    let content: String
+}
+
+// ❌ 避免：使用不稳定的 ID
+struct Item {
+    var id: Int { hashValue }  // 可能变化的 ID
+}
+
+// ✅ 批量数据更新
+@State private var items: [Item] = []
+
+func loadMoreItems() {
+    let newItems = fetchNewItems()
+    items.append(contentsOf: newItems)  // 批量添加
+}
+
+// ❌ 避免：频繁的单项更新
+for item in newItems {
+    items.append(item)  // 每次都触发重新布局
 }
 ```
 
-## 故障排除
-
-### 常见问题及解决方案
-
-#### 1. 布局不正确
-
-**问题**：项目重叠或位置错误
-
-**解决方案**：
+#### 4. 视图构建优化
 ```swift
-// 检查容器是否有明确的尺寸
-ScrollView {
-    MasonryView.vertical(columns: .fixed(2)) {
-        // 确保子视图有明确的尺寸
-        ForEach(items) { item in
-            ItemView(item: item)
-                .frame(height: item.height) // ✅ 明确的高度
+// ✅ 避免在视图构建器中进行复杂计算
+struct OptimizedView: View {
+    let processedItems: [ProcessedItem]  // 预处理的数据
+
+    var body: some View {
+        MasonryView.vertical(columns: .fixed(2)) {
+            ForEach(processedItems) { item in
+                ItemView(data: item.processedData)  // 使用预处理的数据
+            }
         }
     }
 }
-.frame(maxWidth: .infinity) // ✅ 明确的容器宽度
-```
 
-#### 2. 性能问题
-
-**问题**：滚动卡顿或内存占用过高
-
-**解决方案**：
-```swift
-// 对大数据集使用 LazyMasonryView
-LazyMasonryView.vertical(
-    columns: .fixed(2),
-    data: largeDataSet,
-    id: \.id,
-    estimatedItemSize: CGSize(width: 150, height: 200) // ✅ 准确的预估尺寸
-) { item in
-    ItemView(item: item)
+// ❌ 避免：在视图构建器中进行复杂计算
+MasonryView.vertical(columns: .fixed(2)) {
+    ForEach(items) { item in
+        ItemView(data: performExpensiveCalculation(item))  // 每次重建都会计算
+    }
 }
 ```
 
-#### 3. 内存占用过高
+### 📈 性能监控
 
-**问题**：应用内存使用持续增长
-
-**解决方案**：
+#### 调试输出
 ```swift
-// 检查是否有内存泄漏
-class ItemViewModel: ObservableObject {
-    // ❌ 避免：强引用循环
-    var onUpdate: (() -> Void)?
-
-    // ✅ 使用：弱引用
-    weak var delegate: ItemDelegate?
-}
-
-// 考虑降低缓存限制（在极端情况下）
-// 注意：这会影响性能，仅在必要时使用
-```
-
-#### 4. 响应式布局不工作
-
-**问题**：屏幕尺寸变化时布局没有更新
-
-**解决方案**：
-```swift
-// 确保断点配置正确
-ResponsiveMasonryView(
-    breakpoints: [
-        0: .vertical(columns: .fixed(1)),      // ✅ 从 0 开始
-        400: .vertical(columns: .fixed(2)),    // ✅ 合理的断点
-        800: .vertical(columns: .fixed(3))     // ✅ 递增的断点
-    ]
-) {
-    // 内容
-}
-```
-
-### 调试技巧
-
-#### 1. 启用调试输出
-
-```swift
-// 在 DEBUG 模式下，库会自动输出调试信息
+// 在 DEBUG 模式下，库会自动输出性能信息
 #if DEBUG
-// 无需额外配置，库会自动输出：
-// - 配置修正警告
-// - 缓存效率统计
-// - 内存使用情况
-// - 性能指标
+// 🎯 SwiftUIMasonryLayouts: 缓存命中，效率: 85.2%
+// ⚠️ SwiftUIMasonryLayouts: 内存使用量(120MB)超过阈值(100MB)，执行内存清理
+// ⚠️ SwiftUIMasonryLayouts: 项目数量(60000)超过最大缓存限制(50000)，可能影响性能
 #endif
 ```
 
-#### 2. 性能监控
-
+#### 性能测量
 ```swift
 // 监控布局性能
 let startTime = CFAbsoluteTimeGetCurrent()
@@ -1055,59 +1178,109 @@ MasonryView.vertical(columns: .fixed(2)) {
 }
 ```
 
-#### 3. 内存监控
+## 最佳实践
 
+### 🏗️ 数据模型设计
+
+#### 推荐的数据模型
 ```swift
-// 监控内存使用
-func logMemoryUsage() {
-    let memoryInfo = mach_task_basic_info()
-    var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+// ✅ 优秀的数据模型设计
+struct PhotoItem: Identifiable, Hashable {
+    let id = UUID()                    // 稳定的唯一标识
+    let url: URL                       // 图片URL
+    let aspectRatio: CGFloat           // 宽高比
+    let title: String                  // 标题
+    let tags: [String]                 // 标签
 
-    let result = withUnsafeMutablePointer(to: &memoryInfo) {
-        $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
-            task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
-        }
+    // 提供预估尺寸有助于性能优化
+    func estimatedSize(for width: CGFloat) -> CGSize {
+        CGSize(width: width, height: width / aspectRatio)
     }
 
-    if result == KERN_SUCCESS {
-        let memoryUsage = memoryInfo.resident_size / (1024 * 1024) // MB
-        print("内存使用: \(memoryUsage)MB")
+    // 实现 Hashable 以支持高效的集合操作
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: PhotoItem, rhs: PhotoItem) -> Bool {
+        lhs.id == rhs.id
     }
 }
 ```
 
-## 最佳实践总结
-
-### 选择合适的视图类型
-
+#### 数据加载策略
 ```swift
-// 小数据集 (< 100项) - 使用 MasonryView
-MasonryView.vertical(columns: .fixed(2)) {
-    ForEach(smallDataSet) { item in
+// ✅ 分页加载大数据集
+class PhotoViewModel: ObservableObject {
+    @Published var photos: [PhotoItem] = []
+    private var currentPage = 0
+    private let pageSize = 50
+
+    func loadMorePhotos() {
+        Task {
+            let newPhotos = await fetchPhotos(page: currentPage, size: pageSize)
+            await MainActor.run {
+                photos.append(contentsOf: newPhotos)
+                currentPage += 1
+            }
+        }
+    }
+}
+```
+
+### 🎨 配置选择指南
+
+#### 根据内容特点选择配置
+```swift
+// 图片内容：使用 .fill 模式，获得更紧凑的布局
+MasonryView.vertical(
+    columns: .adaptive(minSize: 150),
+    placementMode: .fill
+) {
+    ForEach(photos) { photo in
+        PhotoView(photo: photo)
+    }
+}
+
+// 文本卡片：使用 .order 模式，保持阅读顺序
+MasonryView.vertical(
+    columns: .fixed(2),
+    placementMode: .order
+) {
+    ForEach(articles) { article in
+        ArticleCard(article: article)
+    }
+}
+
+// 混合内容：使用 .fill 模式，获得最佳视觉效果
+MasonryView.vertical(
+    columns: .adaptive(minSize: 120),
+    placementMode: .fill
+) {
+    ForEach(mixedItems) { item in
+        MixedContentView(item: item)
+    }
+}
+```
+
+#### 响应式设计最佳实践
+```swift
+// ✅ 渐进式响应式设计
+ResponsiveMasonryView(
+    breakpoints: [
+        0: .vertical(columns: .fixed(1)),      // 超小屏幕
+        320: .vertical(columns: .fixed(2)),    // 小屏幕
+        768: .vertical(columns: .fixed(3)),    // 中等屏幕
+        1024: .vertical(columns: .fixed(4)),   // 大屏幕
+        1440: .vertical(columns: .fixed(5))    // 超大屏幕
+    ]
+) {
+    ForEach(items) { item in
         ItemView(item: item)
     }
 }
 
-// 中等数据集 (100-1000项) - 使用 DataMasonryView
-DataMasonryView.vertical(
-    columns: .adaptive(minSize: 150),
-    data: mediumDataSet,
-    id: \.id
-) { item in
-    ItemView(item: item)
-}
-
-// 大数据集 (> 1000项) - 使用 LazyMasonryView
-LazyMasonryView.vertical(
-    columns: .fixed(3),
-    data: largeDataSet,
-    id: \.id,
-    estimatedItemSize: CGSize(width: 120, height: 180)
-) { item in
-    ItemView(item: item)
-}
-
-// 响应式需求 - 使用 ResponsiveMasonryView
+// ✅ 使用预设断点（推荐）
 ResponsiveMasonryView.withCommonBreakpoints {
     ForEach(items) { item in
         ItemView(item: item)
@@ -1115,99 +1288,292 @@ ResponsiveMasonryView.withCommonBreakpoints {
 }
 ```
 
-### 配置优化
+### 🔄 与其他SwiftUI组件集成
 
+#### 导航集成
 ```swift
-// ✅ 推荐的配置模式
-let config = MasonryConfiguration.vertical(
-    columns: .adaptive(minSize: 150),
-    spacing: 12,
-    placementMode: .fill
-)
-
-// 使用预设配置提高开发效率
-let quickConfig = MasonryConfiguration.threeColumns
-    .withSpacing(horizontal: 16, vertical: 20)
-    .withPlacementMode(.order)
+NavigationView {
+    ScrollView {
+        MasonryView.vertical(columns: .adaptive(minSize: 150)) {
+            ForEach(items) { item in
+                NavigationLink(destination: DetailView(item: item)) {
+                    ItemView(item: item)
+                }
+            }
+        }
+        .padding()
+    }
+    .navigationTitle("瀑布流")
+}
 ```
 
-### 数据管理
-
+#### 搜索集成
 ```swift
-// ✅ 好的数据模型设计
-struct PhotoItem: Identifiable, Hashable {
-    let id = UUID()
-    let url: URL
-    let aspectRatio: CGFloat
+struct SearchableMasonryView: View {
+    @State private var searchText = ""
 
-    // 提供尺寸信息有助于性能优化
-    var estimatedSize: CGSize {
-        CGSize(width: 150, height: 150 / aspectRatio)
+    var filteredItems: [Item] {
+        if searchText.isEmpty {
+            return items
+        } else {
+            return items.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyMasonryView.vertical(
+                    columns: .adaptive(minSize: 150),
+                    data: filteredItems,
+                    id: \.id
+                ) { item in
+                    ItemView(item: item)
+                }
+                .padding()
+            }
+            .searchable(text: $searchText, prompt: "搜索内容...")
+            .navigationTitle("搜索")
+        }
+    }
+}
+```
+
+## 故障排除
+
+### 🐛 常见问题及解决方案
+
+#### 1. 布局不正确
+
+**问题**：项目重叠或位置错误
+
+**原因**：
+- 容器尺寸不明确
+- 子视图尺寸不稳定
+
+**解决方案**：
+```swift
+// ✅ 确保容器有明确的尺寸
+ScrollView {
+    MasonryView.vertical(columns: .fixed(2)) {
+        ForEach(items) { item in
+            ItemView(item: item)
+                .frame(height: item.height)  // 明确的高度
+        }
+    }
+}
+.frame(maxWidth: .infinity)  // 明确的容器宽度
+
+// ✅ 使用 GeometryReader 获取准确尺寸
+GeometryReader { geometry in
+    ScrollView {
+        MasonryView.vertical(columns: .adaptive(minSize: geometry.size.width / 3)) {
+            ForEach(items) { item in
+                ItemView(item: item)
+            }
+        }
+    }
+}
+```
+
+#### 2. 性能问题
+
+**问题**：滚动卡顿或内存占用过高
+
+**原因**：
+- 使用了错误的视图类型
+- 预估尺寸不准确
+- 数据更新过于频繁
+
+**解决方案**：
+```swift
+// ✅ 对大数据集使用 LazyMasonryView
+if items.count > 1000 {
+    LazyMasonryView.vertical(
+        columns: .fixed(2),
+        data: items,
+        id: \.id,
+        estimatedItemSize: CGSize(width: 150, height: 200)  // 准确的预估尺寸
+    ) { item in
+        ItemView(item: item)
     }
 }
 
-// ✅ 稳定的数据更新
-@State private var items: [PhotoItem] = []
+// ✅ 优化数据更新
+@State private var items: [Item] = []
 
-// 批量更新而不是逐个添加
 func loadMoreItems() {
+    // 批量更新而不是逐个添加
     let newItems = fetchNewItems()
     items.append(contentsOf: newItems)
 }
 ```
 
-## 版本历史
+#### 3. 响应式布局不工作
 
-### v2.0.0 (当前版本)
-- **重大更新**：基于 iOS 18.0+ Layout 协议完全重写
-- **新增功能**：
-  - 虚拟化懒加载支持 (`LazyMasonryView`)
-  - 响应式布局支持 (`ResponsiveMasonryView`)
-  - 改进的并发安全性
-  - 增强的内存管理
-  - 多级缓存机制
-- **性能提升**：
-  - 比 v1.x 性能提升 40-60%
-  - 内存使用减少 30-50%
-  - 更好的滚动流畅度
-- **API 改进**：
-  - 更简洁的 API 设计
-  - 更好的类型安全
-  - 更丰富的配置选项
+**问题**：屏幕尺寸变化时布局没有更新
 
-### v1.x (已弃用)
-- 基于传统布局方法
-- 基础瀑布流功能
-- 有限的性能优化
+**原因**：
+- 断点配置错误
+- 断点值不合理
 
-### 兼容性说明
+**解决方案**：
+```swift
+// ✅ 确保断点配置正确
+ResponsiveMasonryView(
+    breakpoints: [
+        0: .vertical(columns: .fixed(1)),      // 从 0 开始
+        400: .vertical(columns: .fixed(2)),    // 合理的断点值
+        800: .vertical(columns: .fixed(3))     // 递增的断点值
+    ]
+) {
+    ForEach(items) { item in
+        ItemView(item: item)
+    }
+}
 
-- **向后兼容**：v1.x API 仍然可用但已标记为 deprecated
-- **迁移建议**：新项目建议直接使用 v2.0 API
-- **升级路径**：提供自动迁移工具和详细的迁移指南
+// ❌ 避免：断点配置错误
+ResponsiveMasonryView(
+    breakpoints: [
+        100: .vertical(columns: .fixed(1)),    // 不从 0 开始
+        300: .vertical(columns: .fixed(3)),    // 跳跃过大
+        200: .vertical(columns: .fixed(2))     // 顺序错误
+    ]
+)
+```
 
-## 社区与支持
+#### 4. 内存占用过高
 
-### 获取帮助
+**问题**：应用内存使用持续增长
 
-1. **GitHub Issues**：报告 bug 和功能请求
-2. **Discussions**：社区讨论和问答
-3. **Stack Overflow**：使用 `swiftui-masonry-layouts` 标签
+**原因**：
+- 内存泄漏
+- 缓存过多
 
-### 贡献指南
+**解决方案**：
+```swift
+// ✅ 检查内存泄漏
+class ItemViewModel: ObservableObject {
+    // 避免强引用循环
+    weak var delegate: ItemDelegate?
 
-欢迎社区贡献！请遵循以下步骤：
+    // 使用 weak 或 unowned 引用
+    private weak var parentView: UIView?
+}
 
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 创建 Pull Request
+// ✅ 在极端情况下手动清理
+// 注意：这会影响性能，仅在必要时使用
+if memoryPressure {
+    // 库会自动处理内存清理，通常不需要手动干预
+}
+```
 
-### 许可证
+#### 5. 虚拟化视图显示异常
 
-MIT License - 详见 [LICENSE](LICENSE) 文件
+**问题**：LazyMasonryView 中的项目显示不正确
+
+**原因**：
+- 预估尺寸与实际尺寸差异过大
+- 数据源不稳定
+
+**解决方案**：
+```swift
+// ✅ 提供准确的预估尺寸
+struct DynamicItem {
+    let content: String
+
+    var estimatedHeight: CGFloat {
+        // 根据内容计算预估高度
+        let font = UIFont.systemFont(ofSize: 16)
+        let size = content.boundingRect(
+            with: CGSize(width: 150, height: .greatestFiniteMagnitude),
+            options: .usesLineFragmentOrigin,
+            attributes: [.font: font],
+            context: nil
+        ).size
+        return size.height + 40  // 加上 padding
+    }
+}
+
+LazyMasonryView.vertical(
+    columns: .fixed(2),
+    data: items,
+    id: \.id,
+    estimatedItemSize: CGSize(
+        width: 150,
+        height: items.first?.estimatedHeight ?? 200
+    )
+) { item in
+    ItemView(item: item)
+}
+```
+
+### 🔧 调试技巧
+
+#### 1. 启用调试输出
+```swift
+// 在 DEBUG 模式下，库会自动输出调试信息
+#if DEBUG
+// 配置修正警告
+// ⚠️ SwiftUIMasonryLayouts: 水平间距不能为负数，已自动修正为0
+
+// 缓存效率统计
+// 🎯 SwiftUIMasonryLayouts: 缓存命中，效率: 85.2%
+
+// 内存使用警告
+// ⚠️ SwiftUIMasonryLayouts: 内存使用量(120MB)超过阈值(100MB)，执行内存清理
+
+// 性能警告
+// ⚠️ SwiftUIMasonryLayouts: 项目数量(60000)超过最大缓存限制(50000)，可能影响性能
+#endif
+```
+
+#### 2. 性能监控
+```swift
+// 监控布局性能
+struct PerformanceMonitoredMasonryView: View {
+    @State private var layoutTime: TimeInterval = 0
+
+    var body: some View {
+        MasonryView.vertical(columns: .fixed(2)) {
+            ForEach(items) { item in
+                ItemView(item: item)
+            }
+        }
+        .onAppear {
+            let startTime = CFAbsoluteTimeGetCurrent()
+            DispatchQueue.main.async {
+                let endTime = CFAbsoluteTimeGetCurrent()
+                layoutTime = endTime - startTime
+                print("布局时间: \(layoutTime * 1000)ms")
+            }
+        }
+    }
+}
+```
+
+#### 3. 内存监控
+```swift
+// 监控内存使用（仅供调试）
+func logMemoryUsage() {
+    #if DEBUG && os(iOS)
+    var info = mach_task_basic_info()
+    var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+
+    let result = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+            task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+        }
+    }
+
+    if result == KERN_SUCCESS {
+        let memoryUsage = info.resident_size / (1024 * 1024)  // MB
+        print("当前内存使用: \(memoryUsage)MB")
+    }
+    #endif
+}
+```
 
 ---
 
-*本文档基于 SwiftUIMasonryLayouts v2.0.0 生成*
-*最后更新：2025年*
+*本文档涵盖了SwiftUIMasonryLayouts库的所有功能和使用场景。*
