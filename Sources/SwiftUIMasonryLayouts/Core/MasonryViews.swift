@@ -5,6 +5,20 @@
 import SwiftUI
 import Foundation
 
+// MARK: - 扩展方法
+
+extension View {
+    /// 条件性应用修饰符
+    @ViewBuilder
+    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - 基础瀑布流视图
 
 /// 基于iOS 18.0+ Layout协议的现代瀑布流视图
@@ -390,100 +404,192 @@ where Data: RandomAccessCollection,
     @State private var virtualizer = MasonryVirtualizer()
     @State private var containerSize: CGSize = .zero
     @State private var scrollOffset: CGPoint = .zero
+    @State private var containerOffset: CGPoint = .zero
+    @State private var isInitialized: Bool = false
+
+    // 防抖机制
+    @State private var scrollUpdateTask: Task<Void, Never>?
+    @State private var lastScrollUpdate: Date = Date()
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollViewReader { scrollProxy in
-                ScrollView(axis == .vertical ? .vertical : .horizontal) {
-                    ZStack(alignment: .topLeading) {
-                        // 虚拟容器，设置总内容尺寸
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(
-                                width: virtualizer.totalSize.width,
-                                height: virtualizer.totalSize.height
-                            )
-
-                        // 只渲染可见的项目
-                        ForEach(virtualizer.visibleItems, id: \.id) { item in
-                            // 安全访问数据，防止索引越界
-                            if item.dataIndex >= 0 && item.dataIndex < data.count {
-                                content(data[data.index(data.startIndex, offsetBy: item.dataIndex)])
-                                    .frame(
-                                        width: item.frame.width,
-                                        height: item.frame.height
-                                    )
+            ScrollView(axis == .vertical ? .vertical : .horizontal) {
+                // 使用不同的方式设置内容尺寸，避免虚拟容器影响对齐
+                Group {
+                    // 只在初始化完成后渲染项目，避免闪烁
+                    if isInitialized {
+                        ZStack(alignment: .topLeading) {
+                            ForEach(virtualizer.visibleItems, id: \.stableViewID) { item in
+                                // 安全访问数据，防止索引越界
+                                if item.dataIndex >= 0 && item.dataIndex < data.count {
+                                    Group {
+                                        // 水平布局时使用严格的高度控制
+                                        if axis == .horizontal {
+                                            // 创建固定高度的容器
+                                            Rectangle()
+                                                .fill(Color.clear)
+                                                .frame(
+                                                    width: item.frame.width,
+                                                    height: item.frame.height
+                                                )
+                                                .overlay(
+                                                    content(data[data.index(data.startIndex, offsetBy: item.dataIndex)])
+                                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                        .clipped()
+                                                )
+                                        } else {
+                                            content(data[data.index(data.startIndex, offsetBy: item.dataIndex)])
+                                                .frame(
+                                                    width: item.frame.width,
+                                                    height: item.frame.height
+                                                )
+                                                .clipped()
+                                        }
+                                    }
                                     .position(
                                         x: item.frame.midX,
                                         y: item.frame.midY
                                     )
+                                    .id(item.stableViewID) // 双重ID保护
+                                }
                             }
                         }
                     }
                 }
+                .frame(
+                    width: virtualizer.totalSize.width,
+                    height: virtualizer.totalSize.height,
+                    alignment: .topLeading
+                )
                 .background(
                     GeometryReader { scrollGeometry in
                         Color.clear
-                            .preference(
-                                key: ScrollOffsetPreferenceKey.self,
-                                value: scrollGeometry.frame(in: .named("scroll")).origin
-                            )
+                            .onAppear {
+                                // 初始化时立即更新可见项目
+                                let initialVisibleRect = CGRect(x: 0, y: 0, width: geometry.size.width, height: geometry.size.height)
+                                virtualizer.updateVisibleItems(visibleRect: initialVisibleRect)
+                            }
+                            .onChange(of: scrollGeometry.frame(in: .named("scrollView"))) { _, frame in
+                                // 计算滚动偏移
+                                let scrollOffset = CGPoint(x: -frame.minX, y: -frame.minY)
+                                let visibleRect = CGRect(
+                                    x: max(0, scrollOffset.x),
+                                    y: max(0, scrollOffset.y),
+                                    width: geometry.size.width,
+                                    height: geometry.size.height
+                                )
+
+                                #if DEBUG
+                                print("🔍 滚动更新 - scrollOffset: \(scrollOffset), visibleRect: \(visibleRect)")
+                                #endif
+
+                                virtualizer.updateVisibleItems(visibleRect: visibleRect)
+                            }
                     }
                 )
-                .coordinateSpace(name: "scroll")
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                    scrollOffset = offset
-                    updateVisibleItems(containerSize: geometry.size, scrollOffset: offset)
-                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .coordinateSpace(name: "scrollView")
                 .onAppear {
+                    #if DEBUG
+                    print("🔄 LazyMasonryView onAppear - 容器尺寸: \(geometry.size), 数据项目: \(data.count)")
+                    #endif
+
                     // 使用实际的几何尺寸而不是硬编码值
                     let currentSize = geometry.size
-                    if containerSize != currentSize {
+                    // 更严格的初始化条件，避免导航动画期间的重复初始化
+                    if !isInitialized && currentSize.width > 0 && currentSize.height > 0 {
                         containerSize = currentSize
-                        initializeVirtualizer()
+
+                        #if DEBUG
+                        print("🚀 LazyMasonryView 开始初始化虚拟化器...")
+                        #endif
+
+                        virtualizer.initialize(
+                            data: data,
+                            axis: axis,
+                            lines: lines,
+                            horizontalSpacing: horizontalSpacing,
+                            verticalSpacing: verticalSpacing,
+                            placementMode: placementMode,
+                            estimatedItemSize: estimatedItemSize,
+                            containerSize: currentSize,
+                            id: id
+                        )
+
+                        // 修复：同步初始化后立即更新可见项目，避免闪烁
+                        let initialVisibleRect = CGRect(x: 0, y: 0, width: currentSize.width, height: currentSize.height)
+                        virtualizer.updateVisibleItems(visibleRect: initialVisibleRect)
+
+                        // 标记为已初始化，开始渲染
+                        isInitialized = true
+
+                        #if DEBUG
+                        print("✅ LazyMasonryView 初始化完成")
+                        print("   - 总项目数: \(virtualizer.allItemsCount)")
+                        print("   - 可见项目数: \(virtualizer.visibleItems.count)")
+                        print("   - 总尺寸: \(virtualizer.totalSize)")
+                        print("   - 容器尺寸: \(currentSize)")
+                        if virtualizer.allItemsCount > 0 {
+                            let frames = virtualizer.allItemsFrames
+                            print("   - 前6个项目frame: \(frames.prefix(6))")
+                            if axis == .horizontal {
+                                print("🔍 水平布局详细分析:")
+                                for (index, frame) in frames.prefix(6).enumerated() {
+                                    let lineIndex = index % 3
+                                    print("     项目\(index): lineIndex=\(lineIndex), frame=(\(frame.minX), \(frame.minY), \(frame.width), \(frame.height))")
+                                }
+                            }
+                        }
+                        #endif
                     }
                 }
                 .onChange(of: geometry.size) { _, newSize in
-                    if containerSize != newSize {
-                        containerSize = newSize
-                        updateVirtualizer(containerSize: newSize)
-                    }
+                    // 智能尺寸变化处理，避免导航动画期间的闪烁
+                    handleSizeChange(newSize: newSize)
                 }
-            }
+                .onDisappear {
+                    virtualizer.cleanup()
+                }
         }
-        .onDisappear {
-            virtualizer.cleanup()
+    }
+
+    /// 智能处理尺寸变化，避免导航动画期间的闪烁
+    private func handleSizeChange(newSize: CGSize) {
+        // 计算尺寸变化的幅度
+        let widthChange = abs(newSize.width - containerSize.width)
+        let heightChange = abs(newSize.height - containerSize.height)
+
+        // 定义显著变化的阈值（避免导航动画期间的微小变化）
+        let significantChangeThreshold: CGFloat = 20.0
+
+        // 只有在显著变化时才更新
+        if widthChange > significantChangeThreshold || heightChange > significantChangeThreshold {
+            #if DEBUG
+            print("📐 显著尺寸变化 - 从 \(containerSize) 到 \(newSize)")
+            #endif
+
+            containerSize = newSize
+            virtualizer.updateContainerSizeGracefully(newSize)
+        } else {
+            #if DEBUG
+            print("📐 微小尺寸变化忽略 - 从 \(containerSize) 到 \(newSize), 变化: (\(widthChange), \(heightChange))")
+            #endif
+
+            // 只更新容器尺寸，不清空可见项目
+            containerSize = newSize
         }
     }
+}
 
-    private func initializeVirtualizer() {
-        virtualizer.initialize(
-            data: data,
-            axis: axis,
-            lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: placementMode,
-            estimatedItemSize: estimatedItemSize,
-            containerSize: containerSize,
-            id: id
-        )
-    }
+// MARK: - 预览项目协议
 
-    private func updateVirtualizer(containerSize: CGSize) {
-        virtualizer.updateContainerSize(containerSize)
-        updateVisibleItems(containerSize: containerSize, scrollOffset: scrollOffset)
-    }
-
-    private func updateVisibleItems(containerSize: CGSize, scrollOffset: CGPoint) {
-        let visibleRect = CGRect(
-            x: -scrollOffset.x,
-            y: -scrollOffset.y,
-            width: containerSize.width,
-            height: containerSize.height
-        )
-        virtualizer.updateVisibleItems(visibleRect: visibleRect)
-    }
+/// 预览项目协议，用于动态尺寸估算
+protocol PreviewItemProtocol {
+    /// 内容高度（不包括文本和padding）
+    var contentHeight: CGFloat { get }
+    /// 内容宽度（不包括padding）
+    var contentWidth: CGFloat { get }
 }
 
 // MARK: - 瀑布流虚拟化器
@@ -494,14 +600,32 @@ where Data: RandomAccessCollection,
 private class MasonryVirtualizer {
 
     /// 虚拟项目信息
-    struct VirtualItem: Identifiable {
+    struct VirtualItem: Identifiable, Equatable {
         let id: AnyHashable
         let dataIndex: Int
         let frame: CGRect
+
+        /// 稳定的视图ID，用于减少SwiftUI视图重建
+        var stableViewID: String {
+            return "item_\(dataIndex)"
+        }
+
+        static func == (lhs: VirtualItem, rhs: VirtualItem) -> Bool {
+            return lhs.id == rhs.id &&
+                   lhs.dataIndex == rhs.dataIndex &&
+                   abs(lhs.frame.minX - rhs.frame.minX) < 1.0 &&
+                   abs(lhs.frame.minY - rhs.frame.minY) < 1.0 &&
+                   abs(lhs.frame.width - rhs.frame.width) < 1.0 &&
+                   abs(lhs.frame.height - rhs.frame.height) < 1.0
+        }
     }
 
     /// 所有项目的布局信息
     private var allItems: [VirtualItem] = []
+
+    /// 公共访问器：所有项目的布局信息
+    var allItemsCount: Int { allItems.count }
+    var allItemsFrames: [CGRect] { allItems.map { $0.frame } }
 
     /// 当前可见的项目
     var visibleItems: [VirtualItem] = []
@@ -511,6 +635,10 @@ private class MasonryVirtualizer {
 
     /// 可见项目的索引集合（用于快速查找）
     private var visibleItemIndices: Set<Int> = []
+
+    /// 视图稳定性控制
+    private var isUpdating: Bool = false
+    private var pendingUpdateRect: CGRect?
 
     /// 总内容尺寸
     var totalSize: CGSize = .zero
@@ -660,6 +788,25 @@ private class MasonryVirtualizer {
         containerSize: CGSize,
         id: KeyPath<Data.Element, ID>
     ) {
+        // 取消之前的布局任务
+        currentLayoutTask?.cancel()
+
+        // 对于中小数据集（< 200项），使用同步初始化以避免闪烁
+        if data.count < 200 && containerSize.width > 0 && containerSize.height > 0 {
+            initializeSynchronously(
+                data: data,
+                axis: axis,
+                lines: lines,
+                horizontalSpacing: horizontalSpacing,
+                verticalSpacing: verticalSpacing,
+                placementMode: placementMode,
+                estimatedItemSize: estimatedItemSize,
+                containerSize: containerSize,
+                id: id
+            )
+            return
+        }
+
         // 异步计算布局
         currentLayoutTask = Task { @MainActor [weak self] in
             guard let self = self else { return }
@@ -669,14 +816,12 @@ private class MasonryVirtualizer {
                 return // 已经在计算中
             }
 
+            // 确保在任务结束时清理状态
             defer {
-                Task {
+                Task { @MainActor in
                     await self.concurrencyController.finishCalculation()
                 }
             }
-
-            // 取消之前的布局任务
-            self.currentLayoutTask?.cancel()
 
             // 生成缓存键
             let cacheKey = CacheKey(
@@ -699,6 +844,10 @@ private class MasonryVirtualizer {
                 #if DEBUG
                 print("🎯 SwiftUIMasonryLayouts: 缓存命中，效率: \(String(format: "%.1f", self.layoutCache.cacheEfficiency * 100))%")
                 #endif
+
+                // 关键修复：缓存命中后也需要更新可见项目
+                let initialVisibleRect = CGRect(x: 0, y: 0, width: containerSize.width, height: containerSize.height)
+                self.updateVisibleItems(visibleRect: initialVisibleRect)
                 return
             } else {
                 self.layoutCache.recordCacheMiss()
@@ -720,7 +869,66 @@ private class MasonryVirtualizer {
         }
     }
 
-    /// 更新容器尺寸
+    /// 同步初始化（用于小数据集）
+    private func initializeSynchronously<Data: RandomAccessCollection, ID: Hashable>(
+        data: Data,
+        axis: Axis,
+        lines: MasonryLines,
+        horizontalSpacing: CGFloat,
+        verticalSpacing: CGFloat,
+        placementMode: MasonryPlacementMode,
+        estimatedItemSize: CGSize,
+        containerSize: CGSize,
+        id: KeyPath<Data.Element, ID>
+    ) {
+        do {
+            // 直接计算布局（同步）
+            let result = try calculateLayoutSynchronously(
+                data: data,
+                axis: axis,
+                lines: lines,
+                horizontalSpacing: horizontalSpacing,
+                verticalSpacing: verticalSpacing,
+                placementMode: placementMode,
+                estimatedItemSize: estimatedItemSize,
+                containerSize: containerSize,
+                id: id
+            )
+
+            // 更新状态
+            self.allItems = result.items
+            self.totalSize = result.totalSize
+
+            #if DEBUG
+            print("🚀 SwiftUIMasonryLayouts: 同步初始化完成 - \(result.items.count) 个项目, totalSize: \(result.totalSize)")
+            #endif
+
+            // 立即更新可见项目 - 使用正确的初始可见区域
+            let initialVisibleRect = CGRect(x: 0, y: 0, width: containerSize.width, height: containerSize.height)
+            self.updateVisibleItems(visibleRect: initialVisibleRect)
+
+            #if DEBUG
+            print("📍 同步初始化后可见项目: \(self.visibleItems.count), 初始可见区域: \(initialVisibleRect)")
+            #endif
+
+        } catch {
+            #if DEBUG
+            print("❌ SwiftUIMasonryLayouts: 同步初始化失败: \(error)")
+            #endif
+
+            // 回退到异步初始化
+            // 这里不调用完整的initialize以避免递归
+            currentLayoutTask = Task { @MainActor in
+                // 简化的异步初始化...
+                // 设置安全的默认状态
+                self.allItems = []
+                self.totalSize = .zero
+                self.visibleItems = []
+            }
+        }
+    }
+
+    /// 更新容器尺寸（激进模式，用于重大变化）
     func updateContainerSize(_ newSize: CGSize) {
         // 检查尺寸是否真的发生了变化
         guard layoutCache.containerSize != newSize else { return }
@@ -742,41 +950,136 @@ private class MasonryVirtualizer {
         visibleItems.removeAll()
     }
 
+    /// 优雅地更新容器尺寸（避免闪烁）
+    func updateContainerSizeGracefully(_ newSize: CGSize) {
+        // 检查尺寸是否真的发生了变化
+        guard layoutCache.containerSize != newSize else { return }
+
+        #if DEBUG
+        print("🔄 优雅更新容器尺寸 - 从 \(layoutCache.containerSize) 到 \(newSize)")
+        #endif
+
+        // 取消当前计算
+        currentLayoutTask?.cancel()
+        currentLayoutTask = nil
+
+        // 使所有正在运行的任务失效
+        Task {
+            await concurrencyController.invalidateAllTasks()
+        }
+
+        // 更新缓存
+        layoutCache.invalidate()
+        layoutCache.containerSize = newSize
+
+        // 保持当前可见项目，避免闪烁
+        // 只在新的布局计算完成后才更新可见项目
+
+        #if DEBUG
+        print("✅ 容器尺寸更新完成，保持当前可见项目: \(visibleItems.count)")
+        #endif
+    }
+
     /// 更新可见项目（增量更新优化）
     func updateVisibleItems(visibleRect: CGRect) {
+        // 防止并发更新导致的状态不一致
+        if isUpdating {
+            pendingUpdateRect = visibleRect
+            return
+        }
+
         // 检查是否需要更新（避免不必要的计算）
-        let rectChangeThreshold: CGFloat = 10.0 // 10点的变化阈值
-        if abs(visibleRect.minX - lastVisibleRect.minX) < rectChangeThreshold &&
-           abs(visibleRect.minY - lastVisibleRect.minY) < rectChangeThreshold &&
-           abs(visibleRect.width - lastVisibleRect.width) < rectChangeThreshold &&
-           abs(visibleRect.height - lastVisibleRect.height) < rectChangeThreshold {
+        let rectChangeThreshold: CGFloat = 20.0 // 增加阈值，减少微小滚动的更新
+
+        // 修复：如果是初始状态、allItems为空或visibleItems为空，强制更新
+        let isInitialState = lastVisibleRect == .zero || allItems.isEmpty || visibleItems.isEmpty
+        let hasSignificantChange = abs(visibleRect.minX - lastVisibleRect.minX) >= rectChangeThreshold ||
+                                  abs(visibleRect.minY - lastVisibleRect.minY) >= rectChangeThreshold ||
+                                  abs(visibleRect.width - lastVisibleRect.width) >= rectChangeThreshold ||
+                                  abs(visibleRect.height - lastVisibleRect.height) >= rectChangeThreshold
+
+        if !isInitialState && !hasSignificantChange {
             return // 变化太小，跳过更新
         }
 
-        // 计算缓冲区域
+        performVisibleItemsUpdate(visibleRect: visibleRect)
+    }
+
+    /// 执行实际的可见项目更新
+    private func performVisibleItemsUpdate(visibleRect: CGRect) {
+        isUpdating = true
+        defer {
+            isUpdating = false
+            // 处理待处理的更新
+            if let pending = pendingUpdateRect {
+                pendingUpdateRect = nil
+                DispatchQueue.main.async {
+                    self.updateVisibleItems(visibleRect: pending)
+                }
+            }
+        }
+
+        // 计算稳定的缓冲区域，减少边界抖动
+        let bufferSize = min(visibleRect.width, visibleRect.height) * 0.5 // 固定缓冲大小
         let bufferedRect = CGRect(
-            x: visibleRect.minX - visibleRect.width * (bufferMultiplier - 1) / 2,
-            y: visibleRect.minY - visibleRect.height * (bufferMultiplier - 1) / 2,
-            width: visibleRect.width * bufferMultiplier,
-            height: visibleRect.height * bufferMultiplier
+            x: visibleRect.minX - bufferSize,
+            y: visibleRect.minY - bufferSize,
+            width: visibleRect.width + bufferSize * 2,
+            height: visibleRect.height + bufferSize * 2
         )
 
         // 增量更新：只处理变化的部分
         let newVisibleItems = performIncrementalUpdate(bufferedRect: bufferedRect)
 
-        // 更新状态
-        visibleItems = newVisibleItems
-        lastVisibleRect = visibleRect
+        // 智能更新：只有在实际发生变化时才更新状态
+        if !areVisibleItemsEqual(visibleItems, newVisibleItems) {
+            visibleItems = newVisibleItems
+            lastVisibleRect = visibleRect
 
-        // 更新索引集合
-        visibleItemIndices = Set(visibleItems.map { $0.dataIndex })
+            // 更新索引集合
+            visibleItemIndices = Set(visibleItems.map { $0.dataIndex })
+        }
+
+        #if DEBUG
+        // 详细的调试信息，帮助诊断可见项目问题
+        if visibleItems.isEmpty && !allItems.isEmpty {
+            print("⚠️ SwiftUIMasonryLayouts: 可见项目为空但allItems不为空")
+            print("   - allItems: \(allItems.count)")
+            print("   - visibleRect: \(visibleRect)")
+            print("   - bufferedRect: \(bufferedRect)")
+            print("   - 前5个allItems的frame: \(allItems.prefix(5).map { $0.frame })")
+        } else if !visibleItems.isEmpty {
+            print("✅ SwiftUIMasonryLayouts: 找到 \(visibleItems.count)/\(allItems.count) 个可见项目")
+        }
+        #endif
+    }
+
+    /// 智能比较可见项目列表，避免不必要的更新
+    private func areVisibleItemsEqual(_ oldItems: [VirtualItem], _ newItems: [VirtualItem]) -> Bool {
+        // 快速检查：数量不同则肯定不同
+        guard oldItems.count == newItems.count else { return false }
+
+        // 检查每个项目是否相等（使用我们定义的Equatable）
+        for (old, new) in zip(oldItems, newItems) {
+            if old != new {
+                return false
+            }
+        }
+
+        return true
     }
 
     /// 执行增量更新
     private func performIncrementalUpdate(bufferedRect: CGRect) -> [VirtualItem] {
-        // 如果是首次计算或项目数量变化很大，执行完整计算
-        if lastVisibleRect == .zero || abs(allItems.count - visibleItems.count * 4) > 1000 {
-            return allItems.filter { $0.frame.intersects(bufferedRect) }
+        // 修复：如果allItems为空，直接返回空数组
+        guard !allItems.isEmpty else {
+            return []
+        }
+
+        // 如果是首次计算、visibleItems为空或项目数量变化很大，执行完整计算
+        if lastVisibleRect == .zero || visibleItems.isEmpty || abs(allItems.count - visibleItems.count * 4) > 1000 {
+            let result = allItems.filter { $0.frame.intersects(bufferedRect) }
+            return result
         }
 
         // 增量更新：基于空间分区优化
@@ -922,6 +1225,14 @@ private class MasonryVirtualizer {
 
                 // 检查内存压力
                 self.checkMemoryPressure()
+
+                // 关键修复：异步初始化完成后立即更新可见项目
+                let initialVisibleRect = CGRect(x: 0, y: 0, width: containerSize.width, height: containerSize.height)
+                self.updateVisibleItems(visibleRect: initialVisibleRect)
+
+                #if DEBUG
+                print("📍 异步初始化后可见项目: \(self.visibleItems.count), totalSize: \(self.totalSize)")
+                #endif
             }
 
         } catch {
@@ -949,7 +1260,139 @@ private class MasonryVirtualizer {
         }
     }
 
+    /// 同步计算布局（用于小数据集）
+    private func calculateLayoutSynchronously<Data: RandomAccessCollection, ID: Hashable>(
+        data: Data,
+        axis: Axis,
+        lines: MasonryLines,
+        horizontalSpacing: CGFloat,
+        verticalSpacing: CGFloat,
+        placementMode: MasonryPlacementMode,
+        estimatedItemSize: CGSize,
+        containerSize: CGSize,
+        id: KeyPath<Data.Element, ID>
+    ) throws -> (items: [VirtualItem], totalSize: CGSize) {
 
+        // 重用现有的布局计算逻辑，但是同步执行
+        return try performLayoutCalculationSync(
+            data: data,
+            axis: axis,
+            lines: lines,
+            horizontalSpacing: horizontalSpacing,
+            verticalSpacing: verticalSpacing,
+            placementMode: placementMode,
+            estimatedItemSize: estimatedItemSize,
+            containerSize: containerSize,
+            id: id
+        )
+    }
+
+    /// 同步执行布局计算（用于小数据集）
+    private func performLayoutCalculationSync<Data: RandomAccessCollection, ID: Hashable>(
+        data: Data,
+        axis: Axis,
+        lines: MasonryLines,
+        horizontalSpacing: CGFloat,
+        verticalSpacing: CGFloat,
+        placementMode: MasonryPlacementMode,
+        estimatedItemSize: CGSize,
+        containerSize: CGSize,
+        id: KeyPath<Data.Element, ID>
+    ) throws -> (items: [VirtualItem], totalSize: CGSize) {
+
+        // 边界检查
+        guard !data.isEmpty else {
+            return (items: [], totalSize: .zero)
+        }
+
+        // 验证容器尺寸
+        guard containerSize.width > 0 && containerSize.height > 0 else {
+            throw VirtualizationError.invalidContainerSize
+        }
+
+        // 验证估计项目尺寸
+        guard estimatedItemSize.width > 0 && estimatedItemSize.height > 0 else {
+            throw VirtualizationError.invalidEstimatedSize
+        }
+
+        // 计算行/列数
+        let lineCount = calculateLineCount(lines: lines, containerSize: containerSize, axis: axis, spacing: axis == .vertical ? horizontalSpacing : verticalSpacing)
+        guard lineCount > 0 && lineCount < 1000 else {
+            throw VirtualizationError.invalidLineCount
+        }
+
+        let lineSize = calculateLineSize(containerSize: containerSize, lineCount: lineCount, axis: axis, spacing: axis == .vertical ? horizontalSpacing : verticalSpacing)
+
+        var items: [VirtualItem] = []
+        items.reserveCapacity(min(data.count, 1000)) // 限制小数据集
+
+        var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
+
+        for (index, dataItem) in data.enumerated() {
+            // 使用动态尺寸估算，提高布局准确性
+            let itemSize = estimateItemSizeForData(dataItem, estimatedSize: estimatedItemSize, lineSize: lineSize, axis: axis)
+            let lineIndex = selectLineIndex(lineOffsets: lineOffsets, index: index, placementMode: placementMode)
+
+            guard lineIndex >= 0 && lineIndex < lineCount else {
+                continue
+            }
+
+            // 修复水平布局的坐标计算
+            let frame: CGRect
+            if axis == .vertical {
+                // 垂直布局：x=列索引×列宽, y=累积高度
+                frame = CGRect(
+                    x: CGFloat(lineIndex) * (lineSize + horizontalSpacing),
+                    y: lineOffsets[lineIndex],
+                    width: lineSize,
+                    height: itemSize.height
+                )
+            } else {
+                // 水平布局：x=累积宽度, y=行索引×行高
+                frame = CGRect(
+                    x: lineOffsets[lineIndex],
+                    y: CGFloat(lineIndex) * (lineSize + verticalSpacing),
+                    width: itemSize.width,
+                    height: lineSize
+                )
+            }
+
+            #if DEBUG
+            if axis == .horizontal && index < 6 {
+                print("🔍 项目\(index): lineIndex=\(lineIndex), frame=(\(frame.minX), \(frame.minY), \(frame.width), \(frame.height))")
+                print("   lineOffsets=\(lineOffsets)")
+            }
+            #endif
+
+            let virtualItem = VirtualItem(
+                id: AnyHashable(dataItem[keyPath: id]),
+                dataIndex: index,
+                frame: frame
+            )
+
+            items.append(virtualItem)
+
+            // 更新行偏移
+            if axis == .vertical {
+                lineOffsets[lineIndex] += itemSize.height + verticalSpacing
+            } else {
+                lineOffsets[lineIndex] += itemSize.width + horizontalSpacing
+                #if DEBUG
+                if axis == .horizontal && index < 6 {
+                    print("   更新后lineOffsets=\(lineOffsets)")
+                }
+                #endif
+            }
+        }
+
+        // 计算总尺寸
+        let totalSize = CGSize(
+            width: axis == .vertical ? CGFloat(lineCount) * lineSize + CGFloat(lineCount - 1) * horizontalSpacing : lineOffsets.max() ?? 0,
+            height: axis == .vertical ? lineOffsets.max() ?? 0 : CGFloat(lineCount) * lineSize + CGFloat(lineCount - 1) * verticalSpacing
+        )
+
+        return (items: items, totalSize: totalSize)
+    }
 
     /// 后台执行布局计算
     private func performLayoutCalculation<Data: RandomAccessCollection, ID: Hashable>(
@@ -1036,7 +1479,8 @@ private class MasonryVirtualizer {
                 }
             }
 
-            let itemSize = estimateItemSize(estimatedItemSize, lineSize: lineSize, axis: axis)
+            // 使用动态尺寸估算，提高布局准确性
+            let itemSize = estimateItemSizeForData(dataItem, estimatedSize: estimatedItemSize, lineSize: lineSize, axis: axis)
             let lineIndex = selectLineIndex(lineOffsets: lineOffsets, index: index, placementMode: placementMode)
 
             // 确保 lineIndex 在有效范围内
@@ -1102,16 +1546,29 @@ private class MasonryVirtualizer {
         var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
 
         for (index, dataItem) in data.enumerated() {
-            // 使用预估尺寸进行布局计算
-            let itemSize = estimateItemSize(estimatedItemSize, lineSize: lineSize, axis: axis)
+            // 使用动态尺寸估算进行布局计算
+            let itemSize = estimateItemSizeForData(dataItem, estimatedSize: estimatedItemSize, lineSize: lineSize, axis: axis)
             let lineIndex = selectLineIndex(lineOffsets: lineOffsets, index: index, placementMode: placementMode)
 
-            let frame = CGRect(
-                x: axis == .vertical ? CGFloat(lineIndex) * (lineSize + horizontalSpacing) : lineOffsets[lineIndex],
-                y: axis == .vertical ? lineOffsets[lineIndex] : CGFloat(lineIndex) * (lineSize + verticalSpacing),
-                width: axis == .vertical ? lineSize : itemSize.width,
-                height: axis == .vertical ? itemSize.height : lineSize
-            )
+            // 修复水平布局的坐标计算
+            let frame: CGRect
+            if axis == .vertical {
+                // 垂直布局：x=列索引×列宽, y=累积高度
+                frame = CGRect(
+                    x: CGFloat(lineIndex) * (lineSize + horizontalSpacing),
+                    y: lineOffsets[lineIndex],
+                    width: lineSize,
+                    height: itemSize.height
+                )
+            } else {
+                // 水平布局：x=累积宽度, y=行索引×行高
+                frame = CGRect(
+                    x: lineOffsets[lineIndex],
+                    y: CGFloat(lineIndex) * (lineSize + verticalSpacing),
+                    width: itemSize.width,
+                    height: lineSize
+                )
+            }
 
             let virtualItem = VirtualItem(
                 id: AnyHashable(dataItem[keyPath: id]),
@@ -1169,13 +1626,50 @@ private class MasonryVirtualizer {
         }
     }
 
+    /// 根据数据项动态估算项目尺寸（用于更准确的布局）
+    private func estimateItemSizeForData<T>(_ dataItem: T, estimatedSize: CGSize, lineSize: CGFloat, axis: Axis) -> CGSize {
+        // 如果数据项有高度信息，尝试使用它
+        if axis == .vertical {
+            var height = estimatedSize.height
+
+            // 尝试从数据中提取高度信息
+            if let previewItem = dataItem as? any PreviewItemProtocol {
+                // 计算更准确的高度：内容高度 + 文本高度 + padding
+                let contentHeight = previewItem.contentHeight
+                let textHeight: CGFloat = 50 // 估算文本和badge的高度
+                let padding: CGFloat = 16 // 估算padding
+                height = contentHeight + textHeight + padding
+            }
+
+            return CGSize(width: lineSize, height: height)
+        } else {
+            var width = estimatedSize.width
+
+            // 对于水平布局，可以类似地处理宽度
+            if let previewItem = dataItem as? any PreviewItemProtocol {
+                width = previewItem.contentWidth + 32 // 内容宽度 + padding
+            }
+
+            return CGSize(width: width, height: lineSize)
+        }
+    }
+
     private func selectLineIndex(lineOffsets: [CGFloat], index: Int, placementMode: MasonryPlacementMode) -> Int {
+        let selectedIndex: Int
         switch placementMode {
         case .fill:
-            return lineOffsets.enumerated().min(by: { $0.element < $1.element })?.offset ?? 0
+            selectedIndex = lineOffsets.enumerated().min(by: { $0.element < $1.element })?.offset ?? 0
         case .order:
-            return index % lineOffsets.count
+            selectedIndex = index % lineOffsets.count
         }
+
+        #if DEBUG
+        if index < lineOffsets.count {
+            print("🎯 LazyMasonryView selectLineIndex: index=\(index), selectedIndex=\(selectedIndex), placementMode=\(placementMode), lineOffsets=\(lineOffsets)")
+        }
+        #endif
+
+        return selectedIndex
     }
 
     private func calculateTotalSize(lineOffsets: [CGFloat], lineSize: CGFloat, lineCount: Int, axis: Axis, horizontalSpacing: CGFloat, verticalSpacing: CGFloat) -> CGSize {
@@ -1303,6 +1797,15 @@ private class MasonryVirtualizer {
 
 /// 滚动偏移偏好键
 private struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static let defaultValue: CGPoint = .zero
+
+    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
+        value = nextValue()
+    }
+}
+
+/// 容器偏移偏好键
+private struct ContainerOffsetPreferenceKey: PreferenceKey {
     static let defaultValue: CGPoint = .zero
 
     static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {

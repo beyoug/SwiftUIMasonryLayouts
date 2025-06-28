@@ -187,14 +187,25 @@ extension MasonryLayout {
             return emptyResult
         }
 
-        // 检查缓存
+        // 检查缓存（增强缓存条件检查）
         if let cachedResult = cache.cachedResult,
-           cache.lastContainerSize == containerSize {
+           cache.lastContainerSize == containerSize,
+           cachedResult.itemFrames.count == subviews.count {
             cache.recordCacheHit()
+            #if DEBUG
+            print("✅ MasonryLayout: 缓存命中，容器尺寸=\(containerSize), 项目数=\(subviews.count)")
+            #endif
             return cachedResult
         }
 
         cache.recordCacheMiss()
+        #if DEBUG
+        print("🔄 MasonryLayout: 缓存未命中，重新计算布局")
+        print("   容器尺寸: \(containerSize)")
+        print("   项目数: \(subviews.count)")
+        print("   轴向: \(axis)")
+        print("   行/列配置: \(lines)")
+        #endif
         let startTime = CFAbsoluteTimeGetCurrent()
 
         let lineCount = calculateLineCount(containerSize: containerSize)
@@ -209,6 +220,9 @@ extension MasonryLayout {
 
             // 确保 lineIndex 在有效范围内
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else {
+                #if DEBUG
+                print("⚠️ MasonryLayout: 无效的lineIndex \(lineIndex)，跳过项目 \(index)")
+                #endif
                 continue
             }
 
@@ -219,6 +233,13 @@ extension MasonryLayout {
                 height: axis == .vertical ? itemSize.height : lineSize
             )
 
+            #if DEBUG
+            if axis == .horizontal && index < 6 {
+                print("🔍 MasonryLayout 项目\(index): lineIndex=\(lineIndex), frame=(\(frame.minX), \(frame.minY), \(frame.width), \(frame.height))")
+                print("   lineOffsets=\(lineOffsets)")
+            }
+            #endif
+
             itemFrames.append(frame)
 
             // 更新行偏移
@@ -226,6 +247,11 @@ extension MasonryLayout {
                 lineOffsets[lineIndex] += itemSize.height + verticalSpacing
             } else {
                 lineOffsets[lineIndex] += itemSize.width + horizontalSpacing
+                #if DEBUG
+                if axis == .horizontal && index < 6 {
+                    print("   更新后lineOffsets=\(lineOffsets)")
+                }
+                #endif
             }
         }
 
@@ -319,12 +345,14 @@ extension MasonryLayout {
         if axis == .vertical {
             // 垂直布局：宽度由列数决定，高度由最长列决定
             let totalWidth = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * horizontalSpacing
-            let totalHeight = max(0, maxOffset - verticalSpacing)
+            // 修复：垂直布局的总高度应该是最长列的偏移量（不需要减去spacing，因为偏移量已经是正确的）
+            let totalHeight = maxOffset
             return CGSize(width: totalWidth, height: totalHeight)
         } else {
             // 水平布局：高度由行数决定，宽度由最长行决定
             let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * verticalSpacing
-            let totalWidth = max(0, maxOffset - horizontalSpacing)
+            // 修复：水平布局的总宽度应该是最长行的偏移量（不需要减去spacing，因为偏移量已经是正确的）
+            let totalWidth = maxOffset
             return CGSize(width: totalWidth, height: totalHeight)
         }
     }
