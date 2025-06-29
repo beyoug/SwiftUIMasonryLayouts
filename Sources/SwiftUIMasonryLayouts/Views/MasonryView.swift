@@ -144,8 +144,8 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
         
         // 创建新的防抖任务
         debounceTask = Task {
-            // 防抖延迟
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+            // 使用全局配置的防抖时间
+            try? await Task.sleep(nanoseconds: MasonryInternalConfig.responsiveDebounceDelay)
             
             // 检查任务是否被取消
             guard !Task.isCancelled else { return }

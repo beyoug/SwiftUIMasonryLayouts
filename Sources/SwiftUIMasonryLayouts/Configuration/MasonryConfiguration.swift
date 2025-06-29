@@ -38,11 +38,9 @@ public extension MasonryLines {
     /// - Parameter minSize: 每行或列的最小尺寸
     static func adaptive(minSize: CGFloat) -> MasonryLines {
         let correctedSize = max(1, minSize)
-        #if DEBUG
         if minSize <= 0 {
             print("⚠️ SwiftUIMasonryLayouts: 最小尺寸必须大于0，已自动修正为1")
         }
-        #endif
         return .adaptive(sizeConstraint: .min(correctedSize))
     }
 
@@ -50,12 +48,20 @@ public extension MasonryLines {
     /// - Parameter maxSize: 每行或列的最大尺寸
     static func adaptive(maxSize: CGFloat) -> MasonryLines {
         let correctedSize = max(1, maxSize)
-        #if DEBUG
         if maxSize <= 0 {
             print("⚠️ SwiftUIMasonryLayouts: 最大尺寸必须大于0，已自动修正为1")
         }
-        #endif
         return .adaptive(sizeConstraint: .max(correctedSize))
+    }
+
+    /// 获取固定数量（如果是固定模式）
+    var fixedCount: Int? {
+        switch self {
+        case .fixed(let count):
+            return count
+        case .adaptive:
+            return nil
+        }
     }
 }
 
@@ -212,5 +218,51 @@ public extension MasonryConfiguration {
             verticalSpacing: verticalSpacing,
             placementMode: mode
         )
+    }
+}
+
+// MARK: - 内部配置常量
+
+/// SwiftUIMasonryLayouts 内部配置常量
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal enum MasonryInternalConfig {
+
+    // MARK: - 性能常量
+
+    /// 响应式布局防抖延迟（纳秒）
+    static let responsiveDebounceDelay: UInt64 = 50_000_000 // 50ms
+
+    /// 最大缓存项目数量
+    static let maxCacheSize: Int = 1000
+
+    /// 布局缓存最大数量
+    static let maxLayoutCacheSize: Int = 50
+
+    // MARK: - 默认值常量
+
+    /// 默认水平间距
+    static let defaultHorizontalSpacing: CGFloat = 8
+
+    /// 默认垂直间距
+    static let defaultVerticalSpacing: CGFloat = 8
+
+    /// 默认列数
+    static let defaultColumnCount: Int = 2
+
+    /// 推断容器尺寸时的最小宽度
+    static let minimumInferredWidth: CGFloat = 320
+
+    /// 推断容器尺寸时的最小高度
+    static let minimumInferredHeight: CGFloat = 200
+
+    // MARK: - 调试开关（基于编译模式）
+
+    /// 是否启用内部调试日志
+    static var enableInternalLogging: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
     }
 }

@@ -70,13 +70,11 @@ public struct MasonryLayout: Layout, Sendable {
 
     /// 计算布局尺寸
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) -> CGSize {
-        let containerSize = CGSize(
-            width: proposal.width ?? 0,
-            height: proposal.height ?? 0
-        )
+        // 智能处理容器尺寸，适应各种嵌套布局场景
+        let containerSize = determineContainerSize(from: proposal, subviews: subviews)
 
         // 验证容器尺寸的合理性
-        guard containerSize.width > 0 && containerSize.height > 0 else {
+        guard containerSize.width > 0 else {
             return .zero
         }
 
@@ -88,13 +86,82 @@ public struct MasonryLayout: Layout, Sendable {
 
         return result.totalSize
     }
+
+    /// 智能确定容器尺寸，处理各种嵌套布局场景
+    private func determineContainerSize(from proposal: ProposedViewSize, subviews: Subviews) -> CGSize {
+        let proposedWidth = proposal.width
+        let proposedHeight = proposal.height
+
+        // 处理宽度
+        let width: CGFloat
+        if let proposedWidth = proposedWidth, proposedWidth > 0 {
+            width = proposedWidth
+        } else {
+            // 当没有明确宽度时，尝试从子视图推断合理的宽度
+            width = inferReasonableWidth(from: subviews)
+        }
+
+        // 处理高度
+        let height: CGFloat
+        if let proposedHeight = proposedHeight, proposedHeight > 0 {
+            height = proposedHeight
+        } else {
+            // 对于垂直布局，高度应该自适应内容
+            // 对于水平布局，需要推断合理的高度
+            if axis == .vertical {
+                height = 10000 // 允许垂直扩展
+            } else {
+                height = inferReasonableHeight(from: subviews)
+            }
+        }
+
+        return CGSize(width: width, height: height)
+    }
+
+    /// 从子视图推断合理的宽度
+    private func inferReasonableWidth(from subviews: Subviews) -> CGFloat {
+        guard !subviews.isEmpty else { return MasonryInternalConfig.minimumInferredWidth }
+
+        // 计算子视图的理想宽度
+        let sampleSize = subviews.prefix(min(3, subviews.count))
+        let averageWidth = sampleSize.reduce(0) { sum, subview in
+            let size = subview.sizeThatFits(.unspecified)
+            return sum + size.width
+        } / CGFloat(sampleSize.count)
+
+        // 根据列数计算合理的容器宽度
+        let lineCount = max(1, lines.fixedCount ?? 2)
+        let totalSpacing = CGFloat(lineCount - 1) * horizontalSpacing
+        let minWidth = averageWidth * CGFloat(lineCount) + totalSpacing
+
+        return max(MasonryInternalConfig.minimumInferredWidth, minWidth)
+    }
+
+    /// 从子视图推断合理的高度
+    private func inferReasonableHeight(from subviews: Subviews) -> CGFloat {
+        guard !subviews.isEmpty else { return MasonryInternalConfig.minimumInferredHeight }
+
+        // 计算子视图的理想高度
+        let sampleSize = subviews.prefix(min(3, subviews.count))
+        let averageHeight = sampleSize.reduce(0) { sum, subview in
+            let size = subview.sizeThatFits(.unspecified)
+            return sum + size.height
+        } / CGFloat(sampleSize.count)
+
+        // 根据行数计算合理的容器高度
+        let lineCount = max(1, lines.fixedCount ?? 2)
+        let totalSpacing = CGFloat(lineCount - 1) * verticalSpacing
+        let minHeight = averageHeight * CGFloat(lineCount) + totalSpacing
+
+        return max(MasonryInternalConfig.minimumInferredHeight, minHeight)
+    }
     
     /// 放置子视图
     public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) {
         let containerSize = bounds.size
 
         // 验证容器尺寸的合理性
-        guard containerSize.width > 0 && containerSize.height > 0 else {
+        guard containerSize.width > 0 else {
             return
         }
 
@@ -155,6 +222,8 @@ public struct MasonryLayout: Layout, Sendable {
             verticalSpacing: verticalSpacing,
             placementMode: placementMode
         )
+
+
 
         if CacheManager.isCacheValid(
             cache: cache,

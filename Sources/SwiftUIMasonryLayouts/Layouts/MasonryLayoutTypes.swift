@@ -49,22 +49,51 @@ internal struct LayoutParameters {
     func calculateLineCount() -> Int {
         let availableSize = axis == .vertical ? containerSize.width : containerSize.height
         let spacing = axis == .vertical ? horizontalSpacing : verticalSpacing
-        
-        guard availableSize > 0 else { return 1 }
-        
+
+        guard availableSize > 0 else {
+            if MasonryInternalConfig.enableInternalLogging {
+                print("⚠️ SwiftUIMasonryLayouts: 容器尺寸无效 (availableSize: \(availableSize))，使用默认单列布局")
+            }
+            return 1
+        }
+
         switch lines {
         case .fixed(let count):
-            return max(1, count)
+            let validCount = max(1, count)
+            if MasonryInternalConfig.enableInternalLogging && count <= 0 {
+                print("⚠️ SwiftUIMasonryLayouts: 固定列数无效 (\(count))，已修正为 \(validCount)")
+            }
+            return validCount
+
         case .adaptive(let constraint):
             switch constraint {
             case .min(let minSize):
-                guard minSize > 0 else { return 1 }
+                guard minSize > 0 else {
+                    if MasonryInternalConfig.enableInternalLogging {
+                        print("⚠️ SwiftUIMasonryLayouts: 最小尺寸无效 (\(minSize))，使用默认单列布局")
+                    }
+                    return 1
+                }
                 let count = Int(floor((availableSize + spacing) / (minSize + spacing)))
-                return max(1, count)
+                let validCount = max(1, count)
+                if MasonryInternalConfig.enableInternalLogging && count <= 0 {
+                    print("⚠️ SwiftUIMasonryLayouts: 计算的自适应列数无效 (\(count))，已修正为 \(validCount)")
+                }
+                return validCount
+
             case .max(let maxSize):
-                guard maxSize > 0 else { return 1 }
+                guard maxSize > 0 else {
+                    if MasonryInternalConfig.enableInternalLogging {
+                        print("⚠️ SwiftUIMasonryLayouts: 最大尺寸无效 (\(maxSize))，使用默认单列布局")
+                    }
+                    return 1
+                }
                 let count = Int(ceil((availableSize + spacing) / (maxSize + spacing)))
-                return max(1, count)
+                let validCount = max(1, count)
+                if MasonryInternalConfig.enableInternalLogging && count <= 0 {
+                    print("⚠️ SwiftUIMasonryLayouts: 计算的自适应列数无效 (\(count))，已修正为 \(validCount)")
+                }
+                return validCount
             }
         }
     }

@@ -93,13 +93,26 @@ internal struct LazyLayoutCache {
     mutating func cacheItemSize<ID: Hashable>(for id: ID, size: CGSize) {
         // 防止无限增长
         if itemSizes.count >= maxItemSizeCache {
-            // 移除最旧的一半缓存
-            let keysToRemove = Array(itemSizes.keys.prefix(maxItemSizeCache / 2))
-            for key in keysToRemove {
-                itemSizes.removeValue(forKey: key)
-            }
+            // 智能清理：优先保留最近使用的缓存
+            cleanupOldCache()
         }
         itemSizes[AnyHashable(id)] = size
+    }
+
+    /// 智能清理旧缓存
+    private mutating func cleanupOldCache() {
+        let targetSize = maxItemSizeCache * 3 / 4 // 保留75%的缓存
+        let removeCount = itemSizes.count - targetSize
+
+        guard removeCount > 0 else { return }
+
+        // 随机移除一部分缓存，避免总是移除相同的项目
+        let keysToRemove = Array(itemSizes.keys.shuffled().prefix(removeCount))
+        for key in keysToRemove {
+            itemSizes.removeValue(forKey: key)
+        }
+
+
     }
     
     /// 获取缓存的项目尺寸

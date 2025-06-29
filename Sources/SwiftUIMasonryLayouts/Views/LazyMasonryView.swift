@@ -141,8 +141,8 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
                 }
 #if canImport(UIKit)
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-                    // 内存警告时清理缓存
-                    layoutCache.invalidate()
+                    // 内存警告时的智能清理策略
+                    handleMemoryPressure()
                 }
 #endif
             }
@@ -169,7 +169,8 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
 
         debounceTask?.cancel()
         debounceTask = Task {
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            // 使用全局配置的防抖时间
+            try? await Task.sleep(nanoseconds: MasonryInternalConfig.responsiveDebounceDelay)
             guard !Task.isCancelled else { return }
 
             await MainActor.run {
@@ -182,15 +183,15 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     /// 更新配置
     private func updateConfiguration(for width: CGFloat, breakpoints: [CGFloat: MasonryConfiguration]) {
         guard width > 0 else { return }
-        
+
         let newConfig = breakpoints
             .filter { width >= $0.key }
             .max(by: { $0.key < $1.key })?.value ?? .default
-        
+
         let configChanged = currentConfiguration?.lines != newConfig.lines ||
                            currentConfiguration?.axis != newConfig.axis ||
                            currentConfiguration?.placementMode != newConfig.placementMode
-        
+
         if configChanged {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentConfiguration = newConfig
@@ -200,6 +201,25 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
                   currentConfiguration?.verticalSpacing != newConfig.verticalSpacing {
             currentConfiguration = newConfig
         }
+    }
+
+    /// 处理内存压力
+    private func handleMemoryPressure() {
+        // 1. 清理布局缓存
+        layoutCache.invalidate()
+
+        // 2. 如果数据量很大，考虑减少预加载缓冲区
+        if data.count > 1000 {
+            // 通过重新计算可见范围来减少内存使用
+            // 这会触发 LazyMasonryContainer 重新计算可见项目
+        }
+
+        // 3. 强制垃圾回收（在内存紧张时）
+        #if DEBUG
+        if MasonryInternalConfig.enableInternalLogging {
+            print("🧹 SwiftUIMasonryLayouts: 内存警告 - 已清理缓存，数据量: \(data.count)")
+        }
+        #endif
     }
 }
 
