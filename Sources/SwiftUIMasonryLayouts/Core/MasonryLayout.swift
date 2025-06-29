@@ -345,14 +345,22 @@ extension MasonryLayout {
         if axis == .vertical {
             // 垂直布局：宽度由列数决定，高度由最长列决定
             let totalWidth = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * horizontalSpacing
-            // 修复：垂直布局的总高度应该是最长列的偏移量（不需要减去spacing，因为偏移量已经是正确的）
-            let totalHeight = maxOffset
+            // 垂直布局的总高度：最长列的偏移量减去最后一个项目后的间距
+            let totalHeight = max(0, maxOffset - verticalSpacing)
             return CGSize(width: totalWidth, height: totalHeight)
         } else {
             // 水平布局：高度由行数决定，宽度由最长行决定
             let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * verticalSpacing
-            // 修复：水平布局的总宽度应该是最长行的偏移量（不需要减去spacing，因为偏移量已经是正确的）
-            let totalWidth = maxOffset
+            // 水平布局的总宽度：最长行的偏移量减去最后一个项目后的间距
+            let totalWidth = max(0, maxOffset - horizontalSpacing)
+
+            #if DEBUG
+            print("🔍 水平布局总尺寸计算:")
+            print("   lineCount: \(lineCount), lineSize: \(lineSize)")
+            print("   maxOffset: \(maxOffset)")
+            print("   totalWidth: \(totalWidth), totalHeight: \(totalHeight)")
+            #endif
+
             return CGSize(width: totalWidth, height: totalHeight)
         }
     }

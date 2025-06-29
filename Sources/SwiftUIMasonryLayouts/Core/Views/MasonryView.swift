@@ -89,26 +89,5 @@ public extension MasonryView {
         )
     }
 
-    /// 创建水平瀑布流
-    /// - Parameters:
-    ///   - rows: 行数配置
-    ///   - spacing: 间距
-    ///   - placementMode: 放置模式
-    ///   - content: 内容构建器
-    /// - Returns: 水平瀑布流视图
-    static func horizontal<C: View>(
-        rows: MasonryLines,
-        spacing: CGFloat = 8,
-        placementMode: MasonryPlacementMode = .fill,
-        @ViewBuilder content: @escaping () -> C
-    ) -> MasonryView<C> {
-        MasonryView<C>(
-            axis: .horizontal,
-            lines: rows,
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing,
-            placementMode: placementMode,
-            content: content
-        )
-    }
+
 }

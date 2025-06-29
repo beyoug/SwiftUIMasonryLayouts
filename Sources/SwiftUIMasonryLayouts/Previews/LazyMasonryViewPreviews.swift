@@ -17,9 +17,9 @@ import SwiftUI
             lines: .fixed(2),
             data: items,
             id: \.id,
-            estimatedItemSize: CGSize(width: 150, height: 180)
+            estimatedItemSize: CGSize(width: 80, height: 180)
         ) { item in
-            PreviewItemCard(item: item, badge: "小数据集")
+            VerticalMasonryCard(item: item, badge: "小数据集")
         }
         .padding()
         .navigationTitle("LazyMasonry 小数据集")
@@ -38,7 +38,7 @@ import SwiftUI
             id: \.id,
             estimatedItemSize: CGSize(width: 100, height: 180)
         ) { item in
-            PreviewItemCard(item: item, badge: "Virtual")
+            VerticalMasonryCard(item: item, badge: "Virtual")
         }
         .navigationTitle("虚拟化瀑布流")
     }
