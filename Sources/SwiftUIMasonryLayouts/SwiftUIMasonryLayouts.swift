@@ -32,7 +32,12 @@ import SwiftUI
 /// }
 ///
 /// // 响应式设计
-/// MasonryView(breakpoints: MasonryConfiguration.commonBreakpoints) {
+/// let breakpoints: [CGFloat: MasonryConfiguration] = [
+///     0: .columns(1),
+///     480: .columns(2),
+///     768: .columns(3)
+/// ]
+/// MasonryView(breakpoints: breakpoints) {
 ///     ForEach(items) { item in
 ///         ItemView(item: item)
 ///     }
@@ -54,5 +59,13 @@ public enum SwiftUIMasonryLayouts {
 /// 瀑布流视图的便捷别名
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public typealias Masonry = MasonryView
+
+/// 懒加载瀑布流视图的便捷别名（推荐用于大数据集）
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+public typealias LazyMasonry = LazyMasonryView
+
+/// 数据驱动瀑布流视图的便捷别名
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+public typealias DataMasonry = LazyMasonryView
 
 
