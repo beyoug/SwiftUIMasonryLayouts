@@ -55,9 +55,6 @@ public struct MasonryLayout: Layout {
 
         // 验证容器尺寸的合理性
         guard containerSize.width > 0 && containerSize.height > 0 else {
-            #if DEBUG
-            print("⚠️ SwiftUIMasonryLayouts: 无效的容器尺寸: \(containerSize)")
-            #endif
             return .zero
         }
 
@@ -109,11 +106,24 @@ public struct MasonryLayout: Layout {
     }
     
     public func updateCache(_ cache: inout LayoutCache, subviews: Subviews) {
-        // 当子视图数量变化时清除缓存
-        if cache.subviewCount != subviews.count {
+        // 当子视图数量或配置变化时清除缓存
+        let currentConfigHash = configurationHash
+        if cache.subviewCount != subviews.count || cache.lastConfigurationHash != currentConfigHash {
             cache.invalidate()
             cache.subviewCount = subviews.count
+            cache.lastConfigurationHash = currentConfigHash
         }
+    }
+
+    /// 计算当前配置的哈希值，用于缓存键
+    private var configurationHash: Int {
+        var hasher = Hasher()
+        hasher.combine(axis)
+        hasher.combine(lines)
+        hasher.combine(horizontalSpacing)
+        hasher.combine(verticalSpacing)
+        hasher.combine(placementMode)
+        return hasher.finalize()
     }
 }
 
@@ -126,14 +136,19 @@ extension MasonryLayout {
     public struct LayoutCache {
         var subviewCount: Int = 0
         var lastContainerSize: CGSize = .zero
+        var lastConfigurationHash: Int = 0
         var cachedResult: LayoutResult?
         var lastCalculationTime: CFTimeInterval = 0
         var cacheHitCount: Int = 0
         var cacheMissCount: Int = 0
 
+        // 容差范围，避免微小尺寸变化导致缓存失效
+        private let sizeTolerance: CGFloat = 1.0
+
         mutating func invalidate() {
             cachedResult = nil
             lastContainerSize = .zero
+            lastConfigurationHash = 0
             lastCalculationTime = 0
         }
 
@@ -148,6 +163,12 @@ extension MasonryLayout {
         var cacheEfficiency: Double {
             let total = cacheHitCount + cacheMissCount
             return total > 0 ? Double(cacheHitCount) / Double(total) : 0
+        }
+
+        /// 检查容器尺寸是否在容差范围内
+        func isSizeCompatible(with size: CGSize) -> Bool {
+            abs(lastContainerSize.width - size.width) <= sizeTolerance &&
+            abs(lastContainerSize.height - size.height) <= sizeTolerance
         }
     }
     
@@ -187,25 +208,17 @@ extension MasonryLayout {
             return emptyResult
         }
 
-        // 检查缓存（增强缓存条件检查）
+        // 检查缓存 - 使用更智能的缓存策略
+        let currentConfigHash = configurationHash
         if let cachedResult = cache.cachedResult,
-           cache.lastContainerSize == containerSize,
+           cache.isSizeCompatible(with: containerSize),
+           cache.lastConfigurationHash == currentConfigHash,
            cachedResult.itemFrames.count == subviews.count {
             cache.recordCacheHit()
-            #if DEBUG
-            print("✅ MasonryLayout: 缓存命中，容器尺寸=\(containerSize), 项目数=\(subviews.count)")
-            #endif
             return cachedResult
         }
 
         cache.recordCacheMiss()
-        #if DEBUG
-        print("🔄 MasonryLayout: 缓存未命中，重新计算布局")
-        print("   容器尺寸: \(containerSize)")
-        print("   项目数: \(subviews.count)")
-        print("   轴向: \(axis)")
-        print("   行/列配置: \(lines)")
-        #endif
         let startTime = CFAbsoluteTimeGetCurrent()
 
         let lineCount = calculateLineCount(containerSize: containerSize)
@@ -220,9 +233,6 @@ extension MasonryLayout {
 
             // 确保 lineIndex 在有效范围内
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else {
-                #if DEBUG
-                print("⚠️ MasonryLayout: 无效的lineIndex \(lineIndex)，跳过项目 \(index)")
-                #endif
                 continue
             }
 
@@ -233,13 +243,6 @@ extension MasonryLayout {
                 height: axis == .vertical ? itemSize.height : lineSize
             )
 
-            #if DEBUG
-            if axis == .horizontal && index < 6 {
-                print("🔍 MasonryLayout 项目\(index): lineIndex=\(lineIndex), frame=(\(frame.minX), \(frame.minY), \(frame.width), \(frame.height))")
-                print("   lineOffsets=\(lineOffsets)")
-            }
-            #endif
-
             itemFrames.append(frame)
 
             // 更新行偏移
@@ -247,11 +250,6 @@ extension MasonryLayout {
                 lineOffsets[lineIndex] += itemSize.height + verticalSpacing
             } else {
                 lineOffsets[lineIndex] += itemSize.width + horizontalSpacing
-                #if DEBUG
-                if axis == .horizontal && index < 6 {
-                    print("   更新后lineOffsets=\(lineOffsets)")
-                }
-                #endif
             }
         }
 
@@ -268,6 +266,7 @@ extension MasonryLayout {
         cache.lastCalculationTime = endTime - startTime
         cache.cachedResult = result
         cache.lastContainerSize = containerSize
+        cache.lastConfigurationHash = currentConfigHash
 
         return result
     }
@@ -353,13 +352,6 @@ extension MasonryLayout {
             let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * verticalSpacing
             // 水平布局的总宽度：最长行的偏移量减去最后一个项目后的间距
             let totalWidth = max(0, maxOffset - horizontalSpacing)
-
-            #if DEBUG
-            print("🔍 水平布局总尺寸计算:")
-            print("   lineCount: \(lineCount), lineSize: \(lineSize)")
-            print("   maxOffset: \(maxOffset)")
-            print("   totalWidth: \(totalWidth), totalHeight: \(totalHeight)")
-            #endif
 
             return CGSize(width: totalWidth, height: totalHeight)
         }

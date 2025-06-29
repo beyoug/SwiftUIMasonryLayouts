@@ -523,8 +523,6 @@ extension QuickMasonryPreview {
                 LazyVStack(spacing: 20) {
                     // 预设配置展示
                     presetSection(title: "双列预设", config: .twoColumns)
-                    presetSection(title: "三列预设", config: .threeColumns)
-                    presetSection(title: "四列预设", config: .fourColumns)
                     presetSection(title: "自适应预设", config: .adaptiveColumns)
                 }
                 .padding()
