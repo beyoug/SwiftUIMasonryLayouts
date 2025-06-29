@@ -123,11 +123,9 @@ struct LazyMasonryExample: View {
 
 
 
-
-
 ## 🤝 贡献
 
-欢迎贡献代码！请查看 [贡献指南](CONTRIBUTING.md) 了解详细信息。
+欢迎贡献代码！部分代码由AI完成，可能存在并未覆盖到的特殊场景，如有任何问题欢迎pr。
 
 ## 📄 许可证
 
