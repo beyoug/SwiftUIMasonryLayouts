@@ -1,6 +1,8 @@
-//
-// Copyright (c) Beyoug
-//
+/**
+*  SwiftUIMasonryLayouts Tests
+*  Copyright (c) Beyoug 2025
+*  MIT license, see LICENSE file for details
+*/
 
 import SwiftUI
 
@@ -16,40 +18,21 @@ import SwiftUI
 /// import SwiftUIMasonryLayouts
 ///
 /// // 基础瀑布流
-/// MasonryView.vertical(columns: .fixed(2), spacing: 8) {
+/// MasonryView(axis: .vertical, lines: .fixed(2)) {
 ///     ForEach(items) { item in
 ///         ItemView(item: item)
 ///     }
 /// }
 ///
 /// // 自适应列数
-/// MasonryView.vertical(columns: .adaptive(minSize: 120)) {
+/// MasonryView(lines: .adaptive(minSize: 120)) {
 ///     ForEach(items) { item in
 ///         ItemView(item: item)
 ///     }
 /// }
 ///
-/// // 数据驱动
-/// DataMasonryView.vertical(
-///     columns: .fixed(3),
-///     data: items,
-///     id: \.id
-/// ) { item in
-///     ItemView(item: item)
-/// }
-///
-/// // 虚拟化懒加载（适用于大数据集）
-/// LazyMasonryView.vertical(
-///     columns: .adaptive(minSize: 150),
-///     data: largeDataSet,
-///     id: \.id,
-///     estimatedItemSize: CGSize(width: 150, height: 200)
-/// ) { item in
-///     ItemView(item: item)
-/// }
-///
 /// // 响应式设计
-/// ResponsiveMasonryView.withCommonBreakpoints {
+/// MasonryView(breakpoints: MasonryConfiguration.commonBreakpoints) {
 ///     ForEach(items) { item in
 ///         ItemView(item: item)
 ///     }
@@ -63,7 +46,7 @@ import SwiftUI
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public enum SwiftUIMasonryLayouts {
     /// 库版本号
-    public static let version = "2.0.0"
+    public static let version = "1.0.0"
 }
 
 // MARK: - 便捷类型别名
@@ -72,10 +55,4 @@ public enum SwiftUIMasonryLayouts {
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public typealias Masonry = MasonryView
 
-/// 懒加载瀑布流视图的便捷别名
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public typealias LazyMasonry = LazyMasonryView
 
-/// 响应式瀑布流视图的便捷别名
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public typealias ResponsiveMasonry = ResponsiveMasonryView

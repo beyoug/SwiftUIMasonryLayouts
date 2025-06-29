@@ -227,8 +227,8 @@ extension MasonryLayout {
             }
 
             let frame = CGRect(
-                x: axis == .vertical ? CGFloat(lineIndex) * (lineSize + horizontalSpacing) : lineOffsets[lineIndex],
-                y: axis == .vertical ? lineOffsets[lineIndex] : CGFloat(lineIndex) * (lineSize + verticalSpacing),
+                x: axis == .vertical ? CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * horizontalSpacing : lineOffsets[lineIndex],
+                y: axis == .vertical ? lineOffsets[lineIndex] : CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * verticalSpacing,
                 width: axis == .vertical ? lineSize : itemSize.width,
                 height: axis == .vertical ? itemSize.height : lineSize
             )
