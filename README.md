@@ -42,6 +42,77 @@ dependencies: [
 
 ## 🚀 快速开始
 
+### 基础导入
+
+```swift
+import SwiftUI
+import SwiftUIMasonryLayouts
+```
+
+### 1. 普通瀑布流创建
+
+适用于静态内容和简单布局场景：
+
+```swift
+struct BasicMasonryExample: View {
+    let items = Array(1...20)
+
+    var body: some View {
+        ScrollView {
+            MasonryView(
+                axis: .vertical,
+                lines: .fixed(2),
+                horizontalSpacing: 8,
+                verticalSpacing: 8
+            ) {
+                ForEach(items, id: \.self) { item in
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.blue.opacity(0.7))
+                        .frame(height: CGFloat.random(in: 100...300))
+                        .overlay(Text("\(item)").foregroundColor(.white))
+                }
+            }
+            .padding()
+        }
+    }
+}
+```
+
+### 2. 懒加载瀑布流创建
+
+推荐用于大数据集和高性能场景：
+
+```swift
+struct LazyMasonryExample: View {
+    @State private var photos = PhotoItem.sampleData
+
+    var body: some View {
+        LazyMasonryView(
+            photos,
+            configuration: .columns(2)
+        ) { photo in
+            AsyncImage(url: photo.imageURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle().fill(Color.gray.opacity(0.3))
+            }
+            .clipped()
+            .cornerRadius(8)
+        }
+        .onReachBottom {
+            // 加载更多数据
+            Task { await loadMorePhotos() }
+        }
+        .padding()
+    }
+
+    private func loadMorePhotos() async {
+        // 实现加载更多逻辑
+    }
+}
+```
 
 ## 📚 文档
 

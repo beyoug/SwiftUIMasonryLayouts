@@ -44,16 +44,16 @@ public struct MasonryLayout: Layout, Sendable {
         let config = MasonryConfiguration(
             axis: axis,
             lines: lines,
-            hSpacing: horizontalSpacing,
-            vSpacing: verticalSpacing,
-            placement: placementMode
+            horizontalSpacing: horizontalSpacing,
+            verticalSpacing: verticalSpacing,
+            placementMode: placementMode
         )
 
         self.axis = config.axis
         self.lines = config.lines
-        self.horizontalSpacing = config.hSpacing
-        self.verticalSpacing = config.vSpacing
-        self.placementMode = config.placement
+        self.horizontalSpacing = config.horizontalSpacing
+        self.verticalSpacing = config.verticalSpacing
+        self.placementMode = config.placementMode
     }
 
     /// 从配置创建布局
@@ -61,9 +61,9 @@ public struct MasonryLayout: Layout, Sendable {
     public init(configuration: MasonryConfiguration) {
         self.axis = configuration.axis
         self.lines = configuration.lines
-        self.horizontalSpacing = configuration.hSpacing
-        self.verticalSpacing = configuration.vSpacing
-        self.placementMode = configuration.placement
+        self.horizontalSpacing = configuration.horizontalSpacing
+        self.verticalSpacing = configuration.verticalSpacing
+        self.placementMode = configuration.placementMode
     }
 
     // MARK: - Layout协议实现
@@ -210,18 +210,20 @@ public struct MasonryLayout: Layout, Sendable {
 
     // MARK: - 私有方法
 
-    /// 执行布局计算（优化版本）
+    /// 执行布局计算
     private func performLayoutCalculation(containerSize: CGSize, subviews: Subviews, cache: inout LayoutCache) -> LayoutResult {
         let startTime = CFAbsoluteTimeGetCurrent()
 
-        // 检查缓存 - 使用稳定的哈希函数
-        let currentConfigHash = CacheManager.generateStableConfigurationHash(
+        // 检查缓存
+        let currentConfigHash = CacheManager.generateConfigurationHash(
             axis: axis,
             lines: lines,
             horizontalSpacing: horizontalSpacing,
             verticalSpacing: verticalSpacing,
             placementMode: placementMode
         )
+
+
 
         if CacheManager.isCacheValid(
             cache: cache,
@@ -230,47 +232,24 @@ public struct MasonryLayout: Layout, Sendable {
             subviewCount: subviews.count
         ) {
             cache.recordCacheHit()
-
-
-
             return cache.cachedResult!
         }
 
         cache.recordCacheMiss()
-
-        // 检查是否可以进行增量计算
-        let canUseIncrementalCalculation = canPerformIncrementalUpdate(
-            cache: cache,
+        let parameters = LayoutParameters(
             containerSize: containerSize,
-            configurationHash: currentConfigHash,
-            subviewCount: subviews.count
+            axis: axis,
+            lines: lines,
+            horizontalSpacing: horizontalSpacing,
+            verticalSpacing: verticalSpacing,
+            placementMode: placementMode
         )
 
-        let result: LayoutResult
-
-        if canUseIncrementalCalculation {
-            result = performIncrementalLayoutCalculation(
-                containerSize: containerSize,
-                subviews: subviews,
-                cache: cache
-            )
-        } else {
-            let parameters = LayoutParameters(
-                containerSize: containerSize,
-                axis: axis,
-                lines: lines,
-                hSpacing: horizontalSpacing,
-                vSpacing: verticalSpacing,
-                placement: placementMode,
-                simpleSizing: nil // MasonryLayout不使用智能尺寸，保持传统行为
-            )
-
-            result = MasonryLayoutEngine.calculateLayout(
-                containerSize: containerSize,
-                subviews: subviews,
-                parameters: parameters
-            )
-        }
+        let result = MasonryLayoutEngine.calculateLayout(
+            containerSize: containerSize,
+            subviews: subviews,
+            parameters: parameters
+        )
 
         // 缓存结果
         let endTime = CFAbsoluteTimeGetCurrent()
@@ -278,59 +257,7 @@ public struct MasonryLayout: Layout, Sendable {
         cache.cachedResult = result
         cache.lastContainerSize = containerSize
         cache.lastConfigurationHash = currentConfigHash
-        cache.subviewCount = subviews.count
-
-
 
         return result
-    }
-
-    // MARK: - 增量布局计算
-
-    /// 检查是否可以进行增量更新
-    private func canPerformIncrementalUpdate(
-        cache: LayoutCache,
-        containerSize: CGSize,
-        configurationHash: Int,
-        subviewCount: Int
-    ) -> Bool {
-        guard cache.cachedResult != nil else { return false }
-
-        // 配置必须相同
-        guard cache.lastConfigurationHash == configurationHash else { return false }
-
-        // 容器尺寸必须兼容
-        guard cache.isSizeCompatible(with: containerSize) else { return false }
-
-        // 子视图数量变化不能太大（增量更新适用于小幅变化）
-        let countDifference = abs(subviewCount - cache.subviewCount)
-        let maxIncrementalDifference = max(5, cache.subviewCount / 10) // 最多10%的变化
-
-        return countDifference <= maxIncrementalDifference
-    }
-
-    /// 执行增量布局计算
-    private func performIncrementalLayoutCalculation(
-        containerSize: CGSize,
-        subviews: Subviews,
-        cache: LayoutCache
-    ) -> LayoutResult {
-        // 对于简单情况，直接使用完整计算
-        // 这里可以根据需要实现更复杂的增量逻辑
-        let parameters = LayoutParameters(
-            containerSize: containerSize,
-            axis: axis,
-            lines: lines,
-            hSpacing: horizontalSpacing,
-            vSpacing: verticalSpacing,
-            placement: placementMode,
-            simpleSizing: nil // MasonryLayout不使用智能尺寸，保持传统行为
-        )
-
-        return MasonryLayoutEngine.calculateLayout(
-            containerSize: containerSize,
-            subviews: subviews,
-            parameters: parameters
-        )
     }
 }

@@ -107,24 +107,24 @@ final class MasonryLayoutTests: XCTestCase {
         let config = MasonryConfiguration(
             axis: .horizontal,
             lines: .fixed(3),
-            hSpacing: 12,
-            vSpacing: 16,
-            placement: .order
+            horizontalSpacing: 12,
+            verticalSpacing: 16,
+            placementMode: .order
         )
-
+        
         XCTAssertEqual(config.axis, .horizontal)
-        XCTAssertEqual(config.hSpacing, 12)
-        XCTAssertEqual(config.vSpacing, 16)
-        XCTAssertEqual(config.placement, .order)
+        XCTAssertEqual(config.horizontalSpacing, 12)
+        XCTAssertEqual(config.verticalSpacing, 16)
+        XCTAssertEqual(config.placementMode, .order)
     }
     
     func testDefaultConfiguration() {
         let config = MasonryConfiguration.default
-
+        
         XCTAssertEqual(config.axis, .vertical)
-        XCTAssertEqual(config.hSpacing, 8)
-        XCTAssertEqual(config.vSpacing, 8)
-        XCTAssertEqual(config.placement, .fill)
+        XCTAssertEqual(config.horizontalSpacing, 8)
+        XCTAssertEqual(config.verticalSpacing, 8)
+        XCTAssertEqual(config.placementMode, .fill)
     }
     
     // MARK: - 输入验证测试
@@ -133,12 +133,12 @@ final class MasonryLayoutTests: XCTestCase {
         // 测试有效输入不会崩溃
         let validConfig = MasonryConfiguration(
             lines: .fixed(2),
-            hSpacing: 8,
-            vSpacing: 8
+            horizontalSpacing: 8,
+            verticalSpacing: 8
         )
 
-        XCTAssertEqual(validConfig.hSpacing, 8)
-        XCTAssertEqual(validConfig.vSpacing, 8)
+        XCTAssertEqual(validConfig.horizontalSpacing, 8)
+        XCTAssertEqual(validConfig.verticalSpacing, 8)
 
         // 测试有效的自适应配置
         let validAdaptive = MasonryLines.adaptive(minSize: 100)
@@ -163,24 +163,24 @@ final class MasonryLayoutTests: XCTestCase {
     func testConfigurationConvenienceMethods() {
         let columnsConfig = MasonryConfiguration.columns(3, spacing: 12)
         XCTAssertEqual(columnsConfig.axis, Axis.vertical)
-        XCTAssertEqual(columnsConfig.hSpacing, 12)
-        XCTAssertEqual(columnsConfig.vSpacing, 12)
+        XCTAssertEqual(columnsConfig.horizontalSpacing, 12)
+        XCTAssertEqual(columnsConfig.verticalSpacing, 12)
 
         let rowsConfig = MasonryConfiguration.rows(2, spacing: 16)
         XCTAssertEqual(rowsConfig.axis, Axis.horizontal)
-        XCTAssertEqual(rowsConfig.hSpacing, 16)
-        XCTAssertEqual(rowsConfig.vSpacing, 16)
+        XCTAssertEqual(rowsConfig.horizontalSpacing, 16)
+        XCTAssertEqual(rowsConfig.verticalSpacing, 16)
     }
 
     func testConfigurationModification() {
         let originalConfig = MasonryConfiguration.default
 
         let modifiedSpacing = originalConfig.withSpacing(horizontal: 16, vertical: 20)
-        XCTAssertEqual(modifiedSpacing.hSpacing, 16)
-        XCTAssertEqual(modifiedSpacing.vSpacing, 20)
+        XCTAssertEqual(modifiedSpacing.horizontalSpacing, 16)
+        XCTAssertEqual(modifiedSpacing.verticalSpacing, 20)
 
         let modifiedMode = originalConfig.withPlacementMode(.order)
-        XCTAssertEqual(modifiedMode.placement, MasonryPlacementMode.order)
+        XCTAssertEqual(modifiedMode.placementMode, MasonryPlacementMode.order)
     }
 
     // MARK: - 简单性能测试

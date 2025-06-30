@@ -101,7 +101,9 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     private func calculateLayout() {
         let containerSize = geometry.size
         guard containerSize.width > 0 else {
-            MasonryInternalConfig.Logger.warning("LazyMasonryContainer 容器宽度无效: \(containerSize.width)")
+            if MasonryInternalConfig.enableInternalLogging {
+                print("⚠️ SwiftUIMasonryLayouts: LazyMasonryContainer 容器宽度无效: \(containerSize.width)")
+            }
             return
         }
 
@@ -160,23 +162,12 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             return
         }
 
-        // 创建索引基础的尺寸计算器适配器
-        let indexBasedCalculator: ((Int, CGFloat) -> CGSize)? = itemSizeCalculator.map { calculator in
-            return { index, lineSize in
-                guard index < data.count else {
-                    return SimpleSizeCalculator.createFallbackSize(lineSize: lineSize, axis: configuration.axis)
-                }
-                let item = data[data.index(data.startIndex, offsetBy: index)]
-                return calculator(item, lineSize)
-            }
-        }
-
         // 使用布局引擎计算
-        let result = MasonryLayoutEngine.calculateIndexBasedLazyLayout(
+        let result = MasonryLayoutEngine.calculateLazyLayout(
             containerSize: containerSize,
-            itemCount: data.count,
+            items: data,
             configuration: configuration,
-            itemSizeCalculator: indexBasedCalculator,
+            itemSizeCalculator: itemSizeCalculator,
             cache: &layoutCache
         )
 
@@ -189,24 +180,13 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
     /// 计算增量布局
     private func calculateIncrementalLayout(for newItems: [Data.Element], startingFromIndex: Int) -> LazyLayoutResult {
-        // 创建索引基础的尺寸计算器适配器
-        let indexBasedCalculator: ((Int, CGFloat) -> CGSize)? = itemSizeCalculator.map { calculator in
-            return { index, lineSize in
-                guard index < data.count else {
-                    return SimpleSizeCalculator.createFallbackSize(lineSize: lineSize, axis: configuration.axis)
-                }
-                let item = data[data.index(data.startIndex, offsetBy: index)]
-                return calculator(item, lineSize)
-            }
-        }
-
         // 这里应该实现增量布局计算逻辑
         // 为了简化，暂时使用完整计算
-        return MasonryLayoutEngine.calculateIndexBasedLazyLayout(
+        return MasonryLayoutEngine.calculateLazyLayout(
             containerSize: geometry.size,
-            itemCount: data.count,
+            items: data,
             configuration: configuration,
-            itemSizeCalculator: indexBasedCalculator,
+            itemSizeCalculator: itemSizeCalculator,
             cache: &layoutCache
         )
     }

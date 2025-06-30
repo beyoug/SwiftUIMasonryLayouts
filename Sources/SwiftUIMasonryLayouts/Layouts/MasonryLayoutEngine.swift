@@ -31,39 +31,32 @@ internal struct MasonryLayoutEngine {
         var itemFrames: [CGRect] = []
 
         for (index, subview) in subviews.enumerated() {
-            // 安全地调用用户自定义视图的sizeThatFits
-            let itemSize = safelyCalculateItemSize(
-                subview: subview,
-                lineSize: lineSize,
-                axis: parameters.axis,
-                simpleSizing: parameters.simpleSizing
-            )
-
-            // 验证计算出的尺寸是否合理
-            let validatedSize = validateItemSize(itemSize, lineSize: lineSize, axis: parameters.axis)
-
+            let itemSize = subview.sizeThatFits(ProposedViewSize(
+                width: parameters.axis == .vertical ? lineSize : nil,
+                height: parameters.axis == .horizontal ? lineSize : nil
+            ))
+            
             let lineIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: index)
 
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else {
-                MasonryInternalConfig.Logger.warning("无效的行索引 - 行索引: \(lineIndex), 总行数: \(lineOffsets.count)")
                 continue
             }
             
             let frame = calculateItemFrame(
-                itemSize: validatedSize,
+                itemSize: itemSize,
                 lineIndex: lineIndex,
                 lineSize: lineSize,
                 lineOffset: lineOffsets[lineIndex],
                 parameters: parameters
             )
-
+            
             itemFrames.append(frame)
-
+            
             // 更新行偏移
             updateLineOffset(
                 &lineOffsets,
                 lineIndex: lineIndex,
-                itemSize: validatedSize,
+                itemSize: itemSize,
                 parameters: parameters
             )
         }
@@ -81,55 +74,51 @@ internal struct MasonryLayoutEngine {
         )
     }
     
-
-
-
-    /// 计算基于索引的懒加载布局（用于新的LazyMasonryLayout）
+    /// 计算懒加载布局
     /// - Parameters:
     ///   - containerSize: 容器尺寸
-    ///   - itemCount: 项目数量
+    ///   - items: 数据项目
     ///   - configuration: 布局配置
     ///   - itemSizeCalculator: 项目尺寸计算器
     ///   - cache: 懒加载缓存
     /// - Returns: 懒加载布局结果
-    static func calculateIndexBasedLazyLayout(
+    static func calculateLazyLayout<Data: RandomAccessCollection, ID: Hashable>(
         containerSize: CGSize,
-        itemCount: Int,
+        items: Data,
         configuration: MasonryConfiguration,
-        itemSizeCalculator: ((Int, CGFloat) -> CGSize)?,
+        itemSizeCalculator: ((Data.Element, CGFloat) -> CGSize)?,
         cache: inout LazyLayoutCache
-    ) -> LazyLayoutResult {
-
+    ) -> LazyLayoutResult where Data.Element: Identifiable, Data.Element.ID == ID {
+        
         let parameters = LayoutParameters(
             containerSize: containerSize,
             axis: configuration.axis,
             lines: configuration.lines,
-            hSpacing: configuration.hSpacing,
-            vSpacing: configuration.vSpacing,
-            placement: configuration.placement,
-            simpleSizing: configuration.simpleSizing
+            horizontalSpacing: configuration.horizontalSpacing,
+            verticalSpacing: configuration.verticalSpacing,
+            placementMode: configuration.placementMode
         )
-
+        
         let lineCount = parameters.calculateLineCount()
         let lineSize = parameters.calculateLineSize(lineCount: lineCount)
-
-        var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
+        
         var itemFrames: [CGRect] = []
+        var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
         var positions: [AnyHashable: CGRect] = [:]
-
-        for index in 0..<itemCount {
-            let itemSize = calculateIndexBasedItemSize(
-                index: index,
+        
+        for (index, item) in items.enumerated() {
+            let itemSize = calculateItemSize(
+                item: item,
                 lineSize: lineSize,
                 configuration: configuration,
                 itemSizeCalculator: itemSizeCalculator,
                 cache: &cache
             )
-
+            
             let lineIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: index)
-
+            
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else { continue }
-
+            
             let frame = calculateItemFrame(
                 itemSize: itemSize,
                 lineIndex: lineIndex,
@@ -137,11 +126,11 @@ internal struct MasonryLayoutEngine {
                 lineOffset: lineOffsets[lineIndex],
                 parameters: parameters
             )
-
+            
             itemFrames.append(frame)
-            positions[AnyHashable(index)] = frame
+            positions[AnyHashable(item.id)] = frame
 
-            cache.cacheItemSize(for: index, size: itemSize)
+            cache.cacheItemSize(for: item.id, size: itemSize)
             updateLineOffset(
                 &lineOffsets,
                 lineIndex: lineIndex,
@@ -149,13 +138,13 @@ internal struct MasonryLayoutEngine {
                 parameters: parameters
             )
         }
-
+        
         let totalSize = parameters.calculateTotalSize(
             lineOffsets: lineOffsets,
             lineSize: lineSize,
             lineCount: lineCount
         )
-
+        
         return LazyLayoutResult(
             itemFrames: itemFrames,
             totalSize: totalSize,
@@ -163,7 +152,7 @@ internal struct MasonryLayoutEngine {
             itemPositions: positions
         )
     }
-
+    
     // MARK: - 辅助方法
     
     /// 计算项目框架
@@ -176,7 +165,7 @@ internal struct MasonryLayoutEngine {
     ) -> CGRect {
         if parameters.axis == .vertical {
             return CGRect(
-                x: CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * parameters.hSpacing,
+                x: CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * parameters.horizontalSpacing,
                 y: lineOffset,
                 width: lineSize,
                 height: itemSize.height
@@ -184,7 +173,7 @@ internal struct MasonryLayoutEngine {
         } else {
             return CGRect(
                 x: lineOffset,
-                y: CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * parameters.vSpacing,
+                y: CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * parameters.verticalSpacing,
                 width: itemSize.width,
                 height: lineSize
             )
@@ -199,126 +188,36 @@ internal struct MasonryLayoutEngine {
         parameters: LayoutParameters
     ) {
         if parameters.axis == .vertical {
-            lineOffsets[lineIndex] += itemSize.height + parameters.vSpacing
+            lineOffsets[lineIndex] += itemSize.height + parameters.verticalSpacing
         } else {
-            lineOffsets[lineIndex] += itemSize.width + parameters.hSpacing
+            lineOffsets[lineIndex] += itemSize.width + parameters.horizontalSpacing
         }
     }
     
-
-
-    /// 计算基于索引的项目尺寸（带缓存优化）
-    private static func calculateIndexBasedItemSize(
-        index: Int,
+    /// 计算懒加载项目尺寸
+    private static func calculateItemSize<Item: Identifiable>(
+        item: Item,
         lineSize: CGFloat,
         configuration: MasonryConfiguration,
-        itemSizeCalculator: ((Int, CGFloat) -> CGSize)?,
+        itemSizeCalculator: ((Item, CGFloat) -> CGSize)?,
         cache: inout LazyLayoutCache
     ) -> CGSize {
-        // 检查缓存
-        if let cachedSize = cache.getCachedItemSize(for: index) {
-            return validateItemSize(cachedSize, lineSize: lineSize, axis: configuration.axis)
+        
+        // 首先检查缓存
+        if let cachedSize = cache.getCachedItemSize(for: item.id) {
+            return cachedSize
         }
-
-        let itemSize: CGSize
-
+        
+        // 使用自定义计算器
         if let calculator = itemSizeCalculator {
-            // 使用自定义计算器
-            itemSize = calculator(index, lineSize)
+            return calculator(item, lineSize)
+        }
+        
+        // 默认尺寸
+        if configuration.axis == .vertical {
+            return CGSize(width: lineSize, height: 150)
         } else {
-            // 使用简化的智能尺寸计算器
-            let mode = configuration.simpleSizing?.mode ?? .golden
-            itemSize = SimpleSizeCalculator.calculateSize(
-                index: index,
-                lineSize: lineSize,
-                axis: configuration.axis,
-                mode: mode
-            )
+            return CGSize(width: 150, height: lineSize)
         }
-
-        // 验证并缓存结果
-        let validatedSize = validateItemSize(itemSize, lineSize: lineSize, axis: configuration.axis)
-        cache.cacheItemSize(for: index, size: validatedSize)
-
-        return validatedSize
-    }
-
-    // MARK: - 验证和错误处理
-
-    /// 安全地计算用户自定义视图的尺寸
-    private static func safelyCalculateItemSize(
-        subview: LayoutSubview,
-        lineSize: CGFloat,
-        axis: Axis,
-        simpleSizing: SimpleSizingConfiguration? = nil
-    ) -> CGSize {
-        // 确定使用的模式
-        let mode = simpleSizing?.mode ?? .adaptive
-
-        // 使用简化的智能尺寸计算器
-        let calculatedSize = SimpleSizeCalculator.calculateSizeForSubview(
-            subview: subview,
-            lineSize: lineSize,
-            axis: axis,
-            mode: mode
-        )
-
-        // 验证计算结果
-        if calculatedSize.width.isFinite && calculatedSize.height.isFinite &&
-           calculatedSize.width > 0 && calculatedSize.height > 0 {
-            return calculatedSize
-        }
-
-        // 如果计算失败，使用传统方法
-        let proposedSize = ProposedViewSize(
-            width: axis == .vertical ? lineSize : nil,
-            height: axis == .horizontal ? lineSize : nil
-        )
-
-        let itemSize = subview.sizeThatFits(proposedSize)
-
-        // 立即进行基本检查
-        if itemSize.width.isNaN || itemSize.height.isNaN ||
-           itemSize.width.isInfinite || itemSize.height.isInfinite {
-            let fallbackSize = SimpleSizeCalculator.createFallbackSize(lineSize: lineSize, axis: axis)
-            MasonryInternalConfig.Logger.warning("用户自定义视图返回无效尺寸，使用回退尺寸: \(fallbackSize)")
-            return fallbackSize
-        }
-
-        return itemSize
-    }
-
-    /// 验证项目尺寸的合理性（简化版）
-    private static func validateItemSize(_ size: CGSize, lineSize: CGFloat, axis: Axis) -> CGSize {
-        let minSize: CGFloat = 1.0
-        let maxSize: CGFloat = lineSize * 5 // 最大不超过行尺寸的5倍
-
-        // 首先检查是否为无效值（NaN、无限大等）
-        if !size.width.isFinite || !size.height.isFinite ||
-           size.width.isNaN || size.height.isNaN ||
-           size.width.isInfinite || size.height.isInfinite {
-
-            let fallbackSize = SimpleSizeCalculator.createFallbackSize(lineSize: lineSize, axis: axis)
-            MasonryInternalConfig.Logger.warning("检测到无效尺寸，使用回退尺寸: \(fallbackSize)")
-            return fallbackSize
-        }
-
-        var validatedSize = size
-
-        // 验证宽度
-        if validatedSize.width <= 0 {
-            validatedSize.width = minSize
-        } else if validatedSize.width > maxSize {
-            validatedSize.width = maxSize
-        }
-
-        // 验证高度
-        if validatedSize.height <= 0 {
-            validatedSize.height = minSize
-        } else if validatedSize.height > maxSize {
-            validatedSize.height = maxSize
-        }
-
-        return validatedSize
     }
 }

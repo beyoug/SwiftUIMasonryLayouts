@@ -18,11 +18,11 @@ public struct MasonryView<Content: View>: View {
     /// 行/列配置
     private let lines: MasonryLines
     /// 水平间距
-    private let hSpacing: CGFloat
+    private let horizontalSpacing: CGFloat
     /// 垂直间距
-    private let vSpacing: CGFloat
+    private let verticalSpacing: CGFloat
     /// 放置模式
-    private let placement: MasonryPlacementMode
+    private let placementMode: MasonryPlacementMode
     /// 响应式断点配置（可选）
     private let breakpoints: [CGFloat: MasonryConfiguration]?
     /// 内容构建器
@@ -41,58 +41,27 @@ public struct MasonryView<Content: View>: View {
     /// - Parameters:
     ///   - axis: 布局轴向
     ///   - lines: 行/列配置
-    ///   - hSpacing: 水平间距
-    ///   - vSpacing: 垂直间距
-    ///   - placement: 放置模式
+    ///   - horizontalSpacing: 水平间距
+    ///   - verticalSpacing: 垂直间距
+    ///   - placementMode: 放置模式
     ///   - content: 内容构建器
     public init(
         axis: Axis = .vertical,
         lines: MasonryLines = .fixed(2),
-        hSpacing: CGFloat = 8,
-        vSpacing: CGFloat = 8,
-        placement: MasonryPlacementMode = .fill,
+        horizontalSpacing: CGFloat = 8,
+        verticalSpacing: CGFloat = 8,
+        placementMode: MasonryPlacementMode = .fill,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.axis = axis
         self.lines = lines
-        self.hSpacing = hSpacing
-        self.vSpacing = vSpacing
-        self.placement = placement
+        self.horizontalSpacing = horizontalSpacing
+        self.verticalSpacing = verticalSpacing
+        self.placementMode = placementMode
         self.breakpoints = nil
         self.content = content
     }
-
-    /// 创建简单瀑布流视图（便捷方法）
-    /// - Parameters:
-    ///   - columns: 列数
-    ///   - spacing: 间距
-    ///   - content: 内容构建器
-    public init(
-        columns: Int = 2,
-        spacing: CGFloat = 8,
-        @ViewBuilder content: @escaping () -> Content
-    ) {
-        self.axis = .vertical
-        self.lines = .fixed(columns)
-        self.hSpacing = spacing
-        self.vSpacing = spacing
-        self.placement = .fill
-        self.breakpoints = nil
-        self.content = content
-    }
-
-    /// 创建最简单的瀑布流视图（类似 LazyVGrid 的设计）
-    /// - Parameter content: 内容构建器
-    public init(@ViewBuilder content: @escaping () -> Content) {
-        self.axis = .vertical
-        self.lines = .fixed(2)
-        self.hSpacing = 8
-        self.vSpacing = 8
-        self.placement = .fill
-        self.breakpoints = nil
-        self.content = content
-    }
-
+    
     /// 创建响应式瀑布流视图
     /// - Parameters:
     ///   - breakpoints: 响应式断点配置
@@ -103,9 +72,9 @@ public struct MasonryView<Content: View>: View {
     ) {
         self.axis = .vertical
         self.lines = .fixed(2)
-        self.hSpacing = 8
-        self.vSpacing = 8
-        self.placement = .fill
+        self.horizontalSpacing = 8
+        self.verticalSpacing = 8
+        self.placementMode = .fill
         self.breakpoints = breakpoints
         self.content = content
     }
@@ -127,9 +96,9 @@ public struct MasonryView<Content: View>: View {
                 MasonryLayout(
                     axis: axis,
                     lines: lines,
-                    horizontalSpacing: hSpacing,
-                    verticalSpacing: vSpacing,
-                    placementMode: placement
+                    horizontalSpacing: horizontalSpacing,
+                    verticalSpacing: verticalSpacing,
+                    placementMode: placementMode
                 ) {
                     content()
                 }
@@ -153,9 +122,9 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
             MasonryLayout(
                 axis: config.axis,
                 lines: config.lines,
-                horizontalSpacing: config.hSpacing,
-                verticalSpacing: config.vSpacing,
-                placementMode: config.placement
+                horizontalSpacing: config.horizontalSpacing,
+                verticalSpacing: config.verticalSpacing,
+                placementMode: config.placementMode
             ) {
                 content()
             }
@@ -165,31 +134,25 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
             .onAppear {
                 updateConfiguration(for: geometry.size.width)
             }
-            .onDisappear {
-                debounceTask?.cancel()
-                debounceTask = nil
-            }
         }
     }
     
     /// 根据屏幕宽度更新配置（带防抖）
     private func updateConfigurationWithDebounce(for width: CGFloat) {
+        // 取消之前的防抖任务
         debounceTask?.cancel()
-
-        debounceTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: MasonryInternalConfig.responsiveDebounceDelay)
-
-                // 检查任务是否被取消
-                guard !Task.isCancelled else { return }
-
-                // 更新配置
+        
+        // 创建新的防抖任务
+        debounceTask = Task {
+            // 使用全局配置的防抖时间
+            try? await Task.sleep(nanoseconds: MasonryInternalConfig.responsiveDebounceDelay)
+            
+            // 检查任务是否被取消
+            guard !Task.isCancelled else { return }
+            
+            // 在主线程更新配置
+            await MainActor.run {
                 updateConfiguration(for: width)
-            } catch {
-                // 处理取消或其他错误
-                if !(error is CancellationError) {
-                    MasonryInternalConfig.Logger.warning("防抖任务错误: \(error)")
-                }
             }
         }
     }
@@ -200,18 +163,18 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
 
         let newConfig = breakpoints
             .filter { width >= $0.key }
-            .max(by: { $0.key < $1.key })?.value ?? MasonryConfiguration.default
+            .max(by: { $0.key < $1.key })?.value ?? .default
 
         let configChanged = currentConfiguration?.lines != newConfig.lines ||
                            currentConfiguration?.axis != newConfig.axis ||
-                           currentConfiguration?.placement != newConfig.placement
+                           currentConfiguration?.placementMode != newConfig.placementMode
 
         if configChanged {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentConfiguration = newConfig
             }
-        } else if currentConfiguration?.hSpacing != newConfig.hSpacing ||
-                  currentConfiguration?.vSpacing != newConfig.vSpacing {
+        } else if currentConfiguration?.horizontalSpacing != newConfig.horizontalSpacing ||
+                  currentConfiguration?.verticalSpacing != newConfig.verticalSpacing {
             currentConfiguration = newConfig
         }
     }
