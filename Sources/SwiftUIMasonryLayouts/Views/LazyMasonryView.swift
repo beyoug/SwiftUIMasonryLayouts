@@ -25,10 +25,10 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     /// 内容构建器
     private let content: (Data.Element) -> Content
     /// 项目尺寸计算器（性能优化）
-    private let itemSizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
-    
+    private let sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
+
     // MARK: - 可扩展回调
-    
+
     /// 可见范围变化回调
     private let onVisibleRangeChanged: ((Range<Data.Index>) -> Void)?
     /// 滚动到底部回调（垂直布局）或右边回调（水平布局）
@@ -49,13 +49,13 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     public init(
         _ data: Data,
         configuration: MasonryConfiguration,
-        itemSizeCalculator: ((Data.Element, CGFloat) -> CGSize)? = nil,
+        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)? = nil,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.data = data
         self.configuration = configuration
         self.breakpoints = nil
-        self.itemSizeCalculator = itemSizeCalculator
+        self.sizeCalculator = sizeCalculator
         self.content = content
         self.onVisibleRangeChanged = nil
         self.onReachBottom = nil
@@ -78,11 +78,11 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
         self.configuration = MasonryConfiguration(
             axis: .vertical,
             lines: .fixed(columns),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
         self.breakpoints = nil
-        self.itemSizeCalculator = nil
+        self.sizeCalculator = nil
         self.content = content
         self.onVisibleRangeChanged = nil
         self.onReachBottom = nil
@@ -93,18 +93,18 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     /// - Parameters:
     ///   - data: 数据源
     ///   - breakpoints: 响应式断点配置
-    ///   - itemSizeCalculator: 可选的项目尺寸计算器
+    ///   - sizeCalculator: 可选的项目尺寸计算器
     ///   - content: 内容构建器
     public init(
         _ data: Data,
         breakpoints: [CGFloat: MasonryConfiguration],
-        itemSizeCalculator: ((Data.Element, CGFloat) -> CGSize)? = nil,
+        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)? = nil,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.data = data
         self.configuration = .default
         self.breakpoints = breakpoints
-        self.itemSizeCalculator = itemSizeCalculator
+        self.sizeCalculator = sizeCalculator
         self.content = content
         self.onVisibleRangeChanged = nil
         self.onReachBottom = nil
@@ -123,7 +123,7 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
                         geometry: geometry,
                         visibleRange: $visibleRange,
                         layoutCache: $layoutCache,
-                        itemSizeCalculator: itemSizeCalculator,
+                        sizeCalculator: sizeCalculator,
                         content: content,
                         onVisibleRangeChanged: onVisibleRangeChanged,
                         onReachBottom: onReachBottom,
@@ -190,15 +190,15 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
 
         let configChanged = currentConfiguration?.lines != newConfig.lines ||
                            currentConfiguration?.axis != newConfig.axis ||
-                           currentConfiguration?.placementMode != newConfig.placementMode
+                           currentConfiguration?.placement != newConfig.placement
 
         if configChanged {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentConfiguration = newConfig
                 layoutCache.invalidate()
             }
-        } else if currentConfiguration?.horizontalSpacing != newConfig.horizontalSpacing ||
-                  currentConfiguration?.verticalSpacing != newConfig.verticalSpacing {
+        } else if currentConfiguration?.hSpacing != newConfig.hSpacing ||
+                  currentConfiguration?.vSpacing != newConfig.vSpacing {
             currentConfiguration = newConfig
         }
     }
@@ -216,9 +216,8 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
 
         // 3. 强制垃圾回收（在内存紧张时）
         #if DEBUG
-        if MasonryInternalConfig.enableInternalLogging {
-            print("🧹 SwiftUIMasonryLayouts: 内存警告 - 已清理缓存，数据量: \(data.count)")
-        }
+        let percentage = Double(data.count) / 1000.0 * 100
+        MasonryLogger.info("内存警告 - 已清理缓存，数据量: \(data.count)/1000 (\(String(format: "%.1f", percentage))%)")
         #endif
     }
 }
@@ -269,7 +268,7 @@ public extension LazyMasonryView {
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
-            itemSizeCalculator: itemSizeCalculator,
+            sizeCalculator: sizeCalculator,
             content: content,
             onVisibleRangeChanged: callbacks.onVisibleRangeChanged,
             onReachBottom: callbacks.onReachBottom,
@@ -283,7 +282,7 @@ public extension LazyMasonryView {
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
-            itemSizeCalculator: itemSizeCalculator,
+            sizeCalculator: sizeCalculator,
             content: content,
             onVisibleRangeChanged: action,
             onReachBottom: onReachBottom,
@@ -297,7 +296,7 @@ public extension LazyMasonryView {
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
-            itemSizeCalculator: itemSizeCalculator,
+            sizeCalculator: sizeCalculator,
             content: content,
             onVisibleRangeChanged: onVisibleRangeChanged,
             onReachBottom: action,
@@ -311,7 +310,7 @@ public extension LazyMasonryView {
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
-            itemSizeCalculator: itemSizeCalculator,
+            sizeCalculator: sizeCalculator,
             content: content,
             onVisibleRangeChanged: onVisibleRangeChanged,
             onReachBottom: onReachBottom,
@@ -339,7 +338,7 @@ private extension LazyMasonryView {
         data: Data,
         configuration: MasonryConfiguration,
         breakpoints: [CGFloat: MasonryConfiguration]?,
-        itemSizeCalculator: ((Data.Element, CGFloat) -> CGSize)?,
+        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?,
         content: @escaping (Data.Element) -> Content,
         onVisibleRangeChanged: ((Range<Data.Index>) -> Void)?,
         onReachBottom: (() -> Void)?,
@@ -348,7 +347,7 @@ private extension LazyMasonryView {
         self.data = data
         self.configuration = configuration
         self.breakpoints = breakpoints
-        self.itemSizeCalculator = itemSizeCalculator
+        self.sizeCalculator = sizeCalculator
         self.content = content
         self.onVisibleRangeChanged = onVisibleRangeChanged
         self.onReachBottom = onReachBottom

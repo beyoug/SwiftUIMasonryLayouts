@@ -18,7 +18,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     let geometry: GeometryProxy
     @Binding var visibleRange: Range<Data.Index>?
     @Binding var layoutCache: LazyLayoutCache
-    let itemSizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
+    let sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
     let content: (Data.Element) -> Content
 
     // MARK: - 业务层回调
@@ -101,9 +101,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     private func calculateLayout() {
         let containerSize = geometry.size
         guard containerSize.width > 0 else {
-            if MasonryInternalConfig.enableInternalLogging {
-                print("⚠️ SwiftUIMasonryLayouts: LazyMasonryContainer 容器宽度无效: \(containerSize.width)")
-            }
+            MasonryLogger.warning("Container: LazyMasonryContainer 容器宽度无效: \(containerSize.width)")
             return
         }
 
@@ -167,7 +165,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             containerSize: containerSize,
             items: data,
             configuration: configuration,
-            itemSizeCalculator: itemSizeCalculator,
+            sizeCalculator: sizeCalculator,
             cache: &layoutCache
         )
 
@@ -186,7 +184,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             containerSize: geometry.size,
             items: data,
             configuration: configuration,
-            itemSizeCalculator: itemSizeCalculator,
+            sizeCalculator: sizeCalculator,
             cache: &layoutCache
         )
     }
@@ -209,7 +207,6 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         }
     }
 
-    
     /// 计算项目尺寸
     private func calculateItemSize(item: Data.Element, lineSize: CGFloat) -> CGSize {
         // 首先检查缓存
@@ -218,7 +215,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         }
         
         // 使用自定义计算器
-        if let calculator = itemSizeCalculator {
+        if let calculator = sizeCalculator {
             return calculator(item, lineSize)
         }
         
@@ -273,7 +270,10 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
         if !newVisibleIndices.isEmpty {
             let sortedIndices = newVisibleIndices.sorted()
-            let newRange = sortedIndices.first!..<data.index(after: sortedIndices.last!)
+            guard let firstIndex = sortedIndices.first,
+                  let lastIndex = sortedIndices.last else { return }
+
+            let newRange = firstIndex..<data.index(after: lastIndex)
 
             // 只在范围真正变化时更新
             if newRange != visibleRange {

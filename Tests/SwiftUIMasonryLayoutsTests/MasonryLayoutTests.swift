@@ -18,9 +18,9 @@ final class MasonryLayoutTests: XCTestCase {
         return MasonryLayout(
             axis: .vertical,
             lines: .fixed(2),
-            horizontalSpacing: 8,
-            verticalSpacing: 8,
-            placementMode: .fill
+            hSpacing: 8,
+            vSpacing: 8,
+            placement: .fill
         )
     }
 
@@ -48,15 +48,15 @@ final class MasonryLayoutTests: XCTestCase {
         let layout = MasonryLayout(
             axis: .vertical,
             lines: .fixed(2),
-            horizontalSpacing: 8,
-            verticalSpacing: 8,
-            placementMode: .fill
+            hSpacing: 8,
+            vSpacing: 8,
+            placement: .fill
         )
 
         XCTAssertEqual(layout.axis, .vertical)
-        XCTAssertEqual(layout.horizontalSpacing, 8)
-        XCTAssertEqual(layout.verticalSpacing, 8)
-        XCTAssertEqual(layout.placementMode, .fill)
+        XCTAssertEqual(layout.hSpacing, 8)
+        XCTAssertEqual(layout.vSpacing, 8)
+        XCTAssertEqual(layout.placement, .fill)
     }
 
     
@@ -107,24 +107,24 @@ final class MasonryLayoutTests: XCTestCase {
         let config = MasonryConfiguration(
             axis: .horizontal,
             lines: .fixed(3),
-            horizontalSpacing: 12,
-            verticalSpacing: 16,
-            placementMode: .order
+            hSpacing: 12,
+            vSpacing: 16,
+            placement: .order
         )
-        
+
         XCTAssertEqual(config.axis, .horizontal)
-        XCTAssertEqual(config.horizontalSpacing, 12)
-        XCTAssertEqual(config.verticalSpacing, 16)
-        XCTAssertEqual(config.placementMode, .order)
+        XCTAssertEqual(config.hSpacing, 12)
+        XCTAssertEqual(config.vSpacing, 16)
+        XCTAssertEqual(config.placement, .order)
     }
     
     func testDefaultConfiguration() {
         let config = MasonryConfiguration.default
         
         XCTAssertEqual(config.axis, .vertical)
-        XCTAssertEqual(config.horizontalSpacing, 8)
-        XCTAssertEqual(config.verticalSpacing, 8)
-        XCTAssertEqual(config.placementMode, .fill)
+        XCTAssertEqual(config.hSpacing, 8)
+        XCTAssertEqual(config.vSpacing, 8)
+        XCTAssertEqual(config.placement, .fill)
     }
     
     // MARK: - 输入验证测试
@@ -133,12 +133,12 @@ final class MasonryLayoutTests: XCTestCase {
         // 测试有效输入不会崩溃
         let validConfig = MasonryConfiguration(
             lines: .fixed(2),
-            horizontalSpacing: 8,
-            verticalSpacing: 8
+            hSpacing: 8,
+            vSpacing: 8
         )
 
-        XCTAssertEqual(validConfig.horizontalSpacing, 8)
-        XCTAssertEqual(validConfig.verticalSpacing, 8)
+        XCTAssertEqual(validConfig.hSpacing, 8)
+        XCTAssertEqual(validConfig.vSpacing, 8)
 
         // 测试有效的自适应配置
         let validAdaptive = MasonryLines.adaptive(minSize: 100)
@@ -163,24 +163,24 @@ final class MasonryLayoutTests: XCTestCase {
     func testConfigurationConvenienceMethods() {
         let columnsConfig = MasonryConfiguration.columns(3, spacing: 12)
         XCTAssertEqual(columnsConfig.axis, Axis.vertical)
-        XCTAssertEqual(columnsConfig.horizontalSpacing, 12)
-        XCTAssertEqual(columnsConfig.verticalSpacing, 12)
+        XCTAssertEqual(columnsConfig.hSpacing, 12)
+        XCTAssertEqual(columnsConfig.vSpacing, 12)
 
         let rowsConfig = MasonryConfiguration.rows(2, spacing: 16)
         XCTAssertEqual(rowsConfig.axis, Axis.horizontal)
-        XCTAssertEqual(rowsConfig.horizontalSpacing, 16)
-        XCTAssertEqual(rowsConfig.verticalSpacing, 16)
+        XCTAssertEqual(rowsConfig.hSpacing, 16)
+        XCTAssertEqual(rowsConfig.vSpacing, 16)
     }
 
     func testConfigurationModification() {
         let originalConfig = MasonryConfiguration.default
 
         let modifiedSpacing = originalConfig.withSpacing(horizontal: 16, vertical: 20)
-        XCTAssertEqual(modifiedSpacing.horizontalSpacing, 16)
-        XCTAssertEqual(modifiedSpacing.verticalSpacing, 20)
+        XCTAssertEqual(modifiedSpacing.hSpacing, 16)
+        XCTAssertEqual(modifiedSpacing.vSpacing, 20)
 
         let modifiedMode = originalConfig.withPlacementMode(.order)
-        XCTAssertEqual(modifiedMode.placementMode, MasonryPlacementMode.order)
+        XCTAssertEqual(modifiedMode.placement, MasonryPlacementMode.order)
     }
 
     // MARK: - 简单性能测试
@@ -237,12 +237,12 @@ final class MasonryLayoutTests: XCTestCase {
         let layout = MasonryLayout(
             axis: .vertical,
             lines: .fixed(2),
-            horizontalSpacing: 0,
-            verticalSpacing: 0
+            hSpacing: 0,
+            vSpacing: 0
         )
 
-        XCTAssertEqual(layout.horizontalSpacing, 0, "水平间距应该为0")
-        XCTAssertEqual(layout.verticalSpacing, 0, "垂直间距应该为0")
+        XCTAssertEqual(layout.hSpacing, 0, "水平间距应该为0")
+        XCTAssertEqual(layout.vSpacing, 0, "垂直间距应该为0")
     }
 
     /// 测试自适应边界值配置
@@ -284,9 +284,9 @@ final class MasonryLayoutTests: XCTestCase {
 
         // 验证布局配置正确
         XCTAssertEqual(layout.axis, .vertical, "轴向应该正确")
-        XCTAssertEqual(layout.horizontalSpacing, 8, "水平间距应该正确")
-        XCTAssertEqual(layout.verticalSpacing, 8, "垂直间距应该正确")
-        XCTAssertEqual(layout.placementMode, .fill, "放置模式应该正确")
+        XCTAssertEqual(layout.hSpacing, 8, "水平间距应该正确")
+        XCTAssertEqual(layout.vSpacing, 8, "垂直间距应该正确")
+        XCTAssertEqual(layout.placement, .fill, "放置模式应该正确")
     }
 
     // MARK: - P2 错误处理和平台兼容性测试
@@ -314,22 +314,22 @@ final class MasonryLayoutTests: XCTestCase {
         let layout1 = MasonryLayout(
             axis: .vertical,
             lines: .fixed(1),
-            horizontalSpacing: 0,
-            verticalSpacing: 0
+            hSpacing: 0,
+            vSpacing: 0
         )
-        XCTAssertEqual(layout1.horizontalSpacing, 0, "应该接受零间距")
-        XCTAssertEqual(layout1.verticalSpacing, 0, "应该接受零间距")
+        XCTAssertEqual(layout1.hSpacing, 0, "应该接受零间距")
+        XCTAssertEqual(layout1.vSpacing, 0, "应该接受零间距")
 
         // 测试负间距（应该被处理）
         let layout2 = MasonryLayout(
             axis: .vertical,
             lines: .fixed(1),
-            horizontalSpacing: -5,
-            verticalSpacing: -10
+            hSpacing: -5,
+            vSpacing: -10
         )
         // 负间距应该被自动修正为0
-        XCTAssertEqual(layout2.horizontalSpacing, 0, "负间距应该被自动修正为0")
-        XCTAssertEqual(layout2.verticalSpacing, 0, "负间距应该被自动修正为0")
+        XCTAssertEqual(layout2.hSpacing, 0, "负间距应该被自动修正为0")
+        XCTAssertEqual(layout2.vSpacing, 0, "负间距应该被自动修正为0")
     }
 
     /// 测试边界条件 - 极端配置值

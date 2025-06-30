@@ -13,37 +13,6 @@ import SwiftUI
 /// SwiftUIMasonryLayouts为SwiftUI应用程序提供高性能、灵活的瀑布流布局。
 /// 基于iOS 18.0+ Layout协议构建，提供最佳性能和原生SwiftUI集成。
 ///
-/// ## 基本用法
-/// ```swift
-/// import SwiftUIMasonryLayouts
-///
-/// // 基础瀑布流
-/// MasonryView(axis: .vertical, lines: .fixed(2)) {
-///     ForEach(items) { item in
-///         ItemView(item: item)
-///     }
-/// }
-///
-/// // 自适应列数
-/// MasonryView(lines: .adaptive(minSize: 120)) {
-///     ForEach(items) { item in
-///         ItemView(item: item)
-///     }
-/// }
-///
-/// // 响应式设计
-/// let breakpoints: [CGFloat: MasonryConfiguration] = [
-///     0: .columns(1),
-///     480: .columns(2),
-///     768: .columns(3)
-/// ]
-/// MasonryView(breakpoints: breakpoints) {
-///     ForEach(items) { item in
-///         ItemView(item: item)
-///     }
-/// }
-/// ```
-///
 /// ## 系统要求
 /// - iOS 18.0+ / macOS 15.0+ / tvOS 18.0+ / watchOS 11.0+ / visionOS 2.0+
 /// - Xcode 16.0+
@@ -63,9 +32,3 @@ public typealias Masonry = MasonryView
 /// 懒加载瀑布流视图的便捷别名（推荐用于大数据集）
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public typealias LazyMasonry = LazyMasonryView
-
-/// 数据驱动瀑布流视图的便捷别名
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public typealias DataMasonry = LazyMasonryView
-
-

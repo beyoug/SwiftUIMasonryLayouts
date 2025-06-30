@@ -221,7 +221,7 @@ struct SpacingMasonryViewExample: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MasonryView(horizontalSpacing: 0, verticalSpacing: 0) {
+                    MasonryView(hSpacing: 0, vSpacing: 0) {
                         ForEach(items.prefix(6)) { item in
                             itemView(item)
                         }
@@ -234,7 +234,7 @@ struct SpacingMasonryViewExample: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MasonryView(horizontalSpacing: 4, verticalSpacing: 4) {
+                    MasonryView(hSpacing: 4, vSpacing: 4) {
                         ForEach(items.dropFirst(6).prefix(6)) { item in
                             itemView(item)
                         }
@@ -247,7 +247,7 @@ struct SpacingMasonryViewExample: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MasonryView(horizontalSpacing: 16, verticalSpacing: 16) {
+                    MasonryView(hSpacing: 16, vSpacing: 16) {
                         ForEach(items.dropFirst(12).prefix(6)) { item in
                             itemView(item)
                         }
@@ -260,7 +260,7 @@ struct SpacingMasonryViewExample: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MasonryView(horizontalSpacing: 8, verticalSpacing: 20) {
+                    MasonryView(hSpacing: 8, vSpacing: 20) {
                         ForEach(items.dropFirst(18)) { item in
                             itemView(item)
                         }
@@ -304,7 +304,7 @@ struct PlacementModeMasonryViewExample: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MasonryView(placementMode: .fill) {
+                    MasonryView(placement: .fill) {
                         ForEach(items.prefix(10)) { item in
                             itemView(item, mode: "Fill")
                         }
@@ -321,7 +321,7 @@ struct PlacementModeMasonryViewExample: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MasonryView(placementMode: .order) {
+                    MasonryView(placement: .order) {
                         ForEach(items.dropFirst(10)) { item in
                             itemView(item, mode: "Order")
                         }
@@ -534,7 +534,7 @@ struct CustomSizeLazyMasonryViewExample: View {
         LazyMasonryView(
             items,
             configuration: .columns(3),
-            itemSizeCalculator: { item, lineSize in
+            sizeCalculator: { item, lineSize in
                 // 根据项目ID计算不同的高度
                 let baseHeight: CGFloat = 80
                 let extraHeight = CGFloat(item.id % 5) * 20

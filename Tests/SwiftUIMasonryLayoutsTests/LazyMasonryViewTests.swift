@@ -133,7 +133,6 @@ final class LazyMasonryViewTests: XCTestCase {
     func testTypeAliasesExist() {
         // 测试类型别名是否存在（编译时检查）
         let _: LazyMasonry<[TestItem], UUID, Text>.Type = LazyMasonryView<[TestItem], UUID, Text>.self
-        let _: DataMasonry<[TestItem], UUID, Text>.Type = LazyMasonryView<[TestItem], UUID, Text>.self
 
         XCTAssertTrue(true, "类型别名应该正确定义")
     }

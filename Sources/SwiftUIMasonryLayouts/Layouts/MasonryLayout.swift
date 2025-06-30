@@ -18,11 +18,11 @@ public struct MasonryLayout: Layout, Sendable {
     /// 行/列配置
     public let lines: MasonryLines
     /// 水平间距
-    public let horizontalSpacing: CGFloat
+    public let hSpacing: CGFloat
     /// 垂直间距
-    public let verticalSpacing: CGFloat
+    public let vSpacing: CGFloat
     /// 放置模式
-    public let placementMode: MasonryPlacementMode
+    public let placement: MasonryPlacementMode
 
     // MARK: - 初始化
 
@@ -30,30 +30,30 @@ public struct MasonryLayout: Layout, Sendable {
     /// - Parameters:
     ///   - axis: 布局轴向
     ///   - lines: 行/列配置
-    ///   - horizontalSpacing: 水平间距
-    ///   - verticalSpacing: 垂直间距
-    ///   - placementMode: 放置模式
+    ///   - hSpacing: 水平间距
+    ///   - vSpacing: 垂直间距
+    ///   - placement: 放置模式
     public init(
         axis: Axis = .vertical,
         lines: MasonryLines = .fixed(2),
-        horizontalSpacing: CGFloat = 8,
-        verticalSpacing: CGFloat = 8,
-        placementMode: MasonryPlacementMode = .fill
+        hSpacing: CGFloat = 8,
+        vSpacing: CGFloat = 8,
+        placement: MasonryPlacementMode = .fill
     ) {
         // 使用配置类的验证逻辑，避免重复
         let config = MasonryConfiguration(
             axis: axis,
             lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: placementMode
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: placement
         )
 
         self.axis = config.axis
         self.lines = config.lines
-        self.horizontalSpacing = config.horizontalSpacing
-        self.verticalSpacing = config.verticalSpacing
-        self.placementMode = config.placementMode
+        self.hSpacing = config.hSpacing
+        self.vSpacing = config.vSpacing
+        self.placement = config.placement
     }
 
     /// 从配置创建布局
@@ -61,9 +61,9 @@ public struct MasonryLayout: Layout, Sendable {
     public init(configuration: MasonryConfiguration) {
         self.axis = configuration.axis
         self.lines = configuration.lines
-        self.horizontalSpacing = configuration.horizontalSpacing
-        self.verticalSpacing = configuration.verticalSpacing
-        self.placementMode = configuration.placementMode
+        self.hSpacing = configuration.hSpacing
+        self.vSpacing = configuration.vSpacing
+        self.placement = configuration.placement
     }
 
     // MARK: - Layout协议实现
@@ -131,7 +131,7 @@ public struct MasonryLayout: Layout, Sendable {
 
         // 根据列数计算合理的容器宽度
         let lineCount = max(1, lines.fixedCount ?? 2)
-        let totalSpacing = CGFloat(lineCount - 1) * horizontalSpacing
+        let totalSpacing = CGFloat(lineCount - 1) * hSpacing
         let minWidth = averageWidth * CGFloat(lineCount) + totalSpacing
 
         return max(MasonryInternalConfig.minimumInferredWidth, minWidth)
@@ -150,7 +150,7 @@ public struct MasonryLayout: Layout, Sendable {
 
         // 根据行数计算合理的容器高度
         let lineCount = max(1, lines.fixedCount ?? 2)
-        let totalSpacing = CGFloat(lineCount - 1) * verticalSpacing
+        let totalSpacing = CGFloat(lineCount - 1) * vSpacing
         let minHeight = averageHeight * CGFloat(lineCount) + totalSpacing
 
         return max(MasonryInternalConfig.minimumInferredHeight, minHeight)
@@ -196,9 +196,9 @@ public struct MasonryLayout: Layout, Sendable {
         let currentConfigHash = CacheManager.generateConfigurationHash(
             axis: axis,
             lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: placementMode
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: placement
         )
 
         if cache.subviewCount != subviews.count || cache.lastConfigurationHash != currentConfigHash {
@@ -218,21 +218,19 @@ public struct MasonryLayout: Layout, Sendable {
         let currentConfigHash = CacheManager.generateConfigurationHash(
             axis: axis,
             lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: placementMode
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: placement
         )
-
-
 
         if CacheManager.isCacheValid(
             cache: cache,
             containerSize: containerSize,
             configurationHash: currentConfigHash,
             subviewCount: subviews.count
-        ) {
+        ), let cachedResult = cache.cachedResult {
             cache.recordCacheHit()
-            return cache.cachedResult!
+            return cachedResult
         }
 
         cache.recordCacheMiss()
@@ -240,9 +238,9 @@ public struct MasonryLayout: Layout, Sendable {
             containerSize: containerSize,
             axis: axis,
             lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: placementMode
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: placement
         )
 
         let result = MasonryLayoutEngine.calculateLayout(

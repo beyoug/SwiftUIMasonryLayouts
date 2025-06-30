@@ -62,8 +62,8 @@ struct BasicMasonryExample: View {
             MasonryView(
                 axis: .vertical,
                 lines: .fixed(2),
-                horizontalSpacing: 8,
-                verticalSpacing: 8
+                hSpacing: 8,
+                vSpacing: 8
             ) {
                 ForEach(items, id: \.self) { item in
                     RoundedRectangle(cornerRadius: 8)
@@ -114,12 +114,11 @@ struct LazyMasonryExample: View {
 }
 ```
 
-## 📚 文档
+## 📚 更多示例
 
-详细的API文档和使用指南请参阅：
+更多使用示例请参阅：
 
-- **[API 接口文档](Documentation/API.md)** - 完整的API参考和使用说明
-- **[示例集合](Documentation/Examples.md)** - 丰富的使用示例和集成案例
+- **[示例代码](Examples/BusinessIntegrationExamples.swift)** - 丰富的使用示例和集成案例
 
 
 

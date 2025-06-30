@@ -39,7 +39,7 @@ public extension MasonryLines {
     static func adaptive(minSize: CGFloat) -> MasonryLines {
         let correctedSize = max(1, minSize)
         if minSize <= 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 最小尺寸必须大于0，已自动修正为1")
+            MasonryLogger.warning("Validation: 最小尺寸必须大于0，已自动修正为1")
         }
         return .adaptive(sizeConstraint: .min(correctedSize))
     }
@@ -49,7 +49,7 @@ public extension MasonryLines {
     static func adaptive(maxSize: CGFloat) -> MasonryLines {
         let correctedSize = max(1, maxSize)
         if maxSize <= 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 最大尺寸必须大于0，已自动修正为1")
+            MasonryLogger.warning("Validation: 最大尺寸必须大于0，已自动修正为1")
         }
         return .adaptive(sizeConstraint: .max(correctedSize))
     }
@@ -93,11 +93,11 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     /// 行/列配置
     public let lines: MasonryLines
     /// 水平间距
-    public let horizontalSpacing: CGFloat
+    public let hSpacing: CGFloat
     /// 垂直间距
-    public let verticalSpacing: CGFloat
+    public let vSpacing: CGFloat
     /// 放置模式
-    public let placementMode: MasonryPlacementMode
+    public let placement: MasonryPlacementMode
     
     // MARK: - 初始化
     
@@ -105,28 +105,28 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     /// - Parameters:
     ///   - axis: 布局轴向，默认为垂直
     ///   - lines: 行/列配置，默认为2列
-    ///   - horizontalSpacing: 水平间距，默认为8
-    ///   - verticalSpacing: 垂直间距，默认为8
-    ///   - placementMode: 放置模式，默认为智能填充
+    ///   - hSpacing: 水平间距，默认为8
+    ///   - vSpacing: 垂直间距，默认为8
+    ///   - placement: 放置模式，默认为智能填充
     public init(
         axis: Axis = .vertical,
         lines: MasonryLines = .fixed(2),
-        horizontalSpacing: CGFloat = 8,
-        verticalSpacing: CGFloat = 8,
-        placementMode: MasonryPlacementMode = .fill
+        hSpacing: CGFloat = 8,
+        vSpacing: CGFloat = 8,
+        placement: MasonryPlacementMode = .fill
     ) {
         self.axis = axis
         self.lines = lines
-        self.horizontalSpacing = max(0, horizontalSpacing)
-        self.verticalSpacing = max(0, verticalSpacing)
-        self.placementMode = placementMode
+        self.hSpacing = max(0, hSpacing)
+        self.vSpacing = max(0, vSpacing)
+        self.placement = placement
         
         #if DEBUG
-        if horizontalSpacing < 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 水平间距不能为负数，已自动修正为0")
+        if hSpacing < 0 {
+            MasonryLogger.warning("Validation: 水平间距不能为负数，已自动修正为0")
         }
-        if verticalSpacing < 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 垂直间距不能为负数，已自动修正为0")
+        if vSpacing < 0 {
+            MasonryLogger.warning("Validation: 垂直间距不能为负数，已自动修正为0")
         }
         #endif
     }
@@ -159,8 +159,8 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: .vertical,
             lines: .fixed(max(1, count)),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
     }
     
@@ -173,8 +173,8 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: .horizontal,
             lines: .fixed(max(1, count)),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
     }
     
@@ -187,8 +187,8 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: .vertical,
             lines: .adaptive(minSize: minColumnWidth),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
     }
     
@@ -201,9 +201,9 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: axis,
             lines: lines,
-            horizontalSpacing: max(0, horizontal),
-            verticalSpacing: max(0, vertical),
-            placementMode: placementMode
+            hSpacing: max(0, horizontal),
+            vSpacing: max(0, vertical),
+            placement: placement
         )
     }
 
@@ -214,11 +214,147 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: axis,
             lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: mode
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: mode
         )
     }
+}
+
+// MARK: - 布局相关类型定义
+
+/// 瀑布流布局结果
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+public struct LayoutResult {
+    /// 每个项目的框架
+    let itemFrames: [CGRect]
+    /// 总尺寸
+    let totalSize: CGSize
+    /// 行/列数
+    let lineCount: Int
+}
+
+/// 懒加载布局结果
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal struct LazyLayoutResult {
+    let itemFrames: [CGRect]
+    let totalSize: CGSize
+    let lineCount: Int
+    let itemPositions: [AnyHashable: CGRect]
+}
+
+/// 滚动偏移检测
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static let defaultValue: CGPoint = .zero
+    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
+        value = nextValue()
+    }
+}
+
+/// 布局计算参数
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal struct LayoutParameters {
+    let containerSize: CGSize
+    let axis: Axis
+    let lines: MasonryLines
+    let hSpacing: CGFloat
+    let vSpacing: CGFloat
+    let placement: MasonryPlacementMode
+
+    /// 计算行/列数
+    func calculateLineCount() -> Int {
+        let availableSize = axis == .vertical ? containerSize.width : containerSize.height
+        let spacing = axis == .vertical ? hSpacing : vSpacing
+
+        guard availableSize > 0 else {
+            MasonryLogger.warning("Container: 容器尺寸无效 (availableSize: \(availableSize))，使用默认单列布局")
+            return 1
+        }
+
+        switch lines {
+        case .fixed(let count):
+            let validCount = max(1, count)
+            if count <= 0 {
+                MasonryLogger.warning("Validation: 固定列数无效 (\(count))，已修正为 \(validCount)")
+            }
+            return validCount
+
+        case .adaptive(let constraint):
+            switch constraint {
+            case .min(let minSize):
+                guard minSize > 0 else {
+                    MasonryLogger.warning("Validation: 最小尺寸无效 (\(minSize))，使用默认单列布局")
+                    return 1
+                }
+                let count = Int(floor((availableSize + spacing) / (minSize + spacing)))
+                let validCount = max(1, count)
+                if count <= 0 {
+                    MasonryLogger.warning("Validation: 计算的自适应列数无效 (\(count))，已修正为 \(validCount)")
+                }
+                return validCount
+
+            case .max(let maxSize):
+                guard maxSize > 0 else {
+                    MasonryLogger.warning("Validation: 最大尺寸无效 (\(maxSize))，使用默认单列布局")
+                    return 1
+                }
+                let count = Int(ceil((availableSize + spacing) / (maxSize + spacing)))
+                let validCount = max(1, count)
+                if count <= 0 {
+                    MasonryLogger.warning("Validation: 计算的自适应列数无效 (\(count))，已修正为 \(validCount)")
+                }
+                return validCount
+            }
+        }
+    }
+
+    /// 计算行/列尺寸
+    func calculateLineSize(lineCount: Int) -> CGFloat {
+        let availableSize = axis == .vertical ? containerSize.width : containerSize.height
+        guard lineCount > 0 && availableSize > 0 else { return 0 }
+
+        let totalSpacing = CGFloat(max(0, lineCount - 1)) * (axis == .vertical ? hSpacing : vSpacing)
+        let lineSize = (availableSize - totalSpacing) / CGFloat(lineCount)
+
+        return max(0, lineSize)
+    }
+
+    /// 选择放置的行/列索引
+    func selectLineIndex(lineOffsets: [CGFloat], index: Int) -> Int {
+        guard !lineOffsets.isEmpty else { return 0 }
+
+        switch placement {
+        case .fill:
+            let selectedIndex = lineOffsets.enumerated().min(by: { $0.element < $1.element })?.offset ?? 0
+            return max(0, min(selectedIndex, lineOffsets.count - 1))
+        case .order:
+            return index % lineOffsets.count
+        }
+    }
+
+    /// 计算总尺寸
+    func calculateTotalSize(lineOffsets: [CGFloat], lineSize: CGFloat, lineCount: Int) -> CGSize {
+        let maxOffset = lineOffsets.max() ?? 0
+
+        if axis == .vertical {
+            let totalHeight = max(0, maxOffset - vSpacing)
+            let totalWidth = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * hSpacing
+            return CGSize(width: totalWidth, height: totalHeight)
+        } else {
+            let totalWidth = max(0, maxOffset - hSpacing)
+            let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * vSpacing
+            return CGSize(width: totalWidth, height: totalHeight)
+        }
+    }
+}
+
+/// 项目布局信息
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal struct ItemLayoutInfo {
+    let frame: CGRect
+    let lineIndex: Int
+    let itemIndex: Int
 }
 
 // MARK: - 内部配置常量
@@ -226,43 +362,66 @@ public extension MasonryConfiguration {
 /// SwiftUIMasonryLayouts 内部配置常量
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 internal enum MasonryInternalConfig {
-
-    // MARK: - 性能常量
-
     /// 响应式布局防抖延迟（纳秒）
     static let responsiveDebounceDelay: UInt64 = 50_000_000 // 50ms
-
-    /// 最大缓存项目数量
-    static let maxCacheSize: Int = 1000
-
-    /// 布局缓存最大数量
-    static let maxLayoutCacheSize: Int = 50
-
-    // MARK: - 默认值常量
-
-    /// 默认水平间距
-    static let defaultHorizontalSpacing: CGFloat = 8
-
-    /// 默认垂直间距
-    static let defaultVerticalSpacing: CGFloat = 8
-
-    /// 默认列数
-    static let defaultColumnCount: Int = 2
 
     /// 推断容器尺寸时的最小宽度
     static let minimumInferredWidth: CGFloat = 320
 
     /// 推断容器尺寸时的最小高度
     static let minimumInferredHeight: CGFloat = 200
+}
 
-    // MARK: - 调试开关（基于编译模式）
+// MARK: - 内部工具和扩展
 
-    /// 是否启用内部调试日志
-    static var enableInternalLogging: Bool {
+/// SwiftUIMasonryLayouts 内部工具集合
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal enum MasonryInternal {
+    /// 安全的尺寸验证
+    static func validateSize(_ size: CGSize, context: String = "") -> CGSize {
+        let validWidth = max(0, size.width.isFinite ? size.width : 0)
+        let validHeight = max(0, size.height.isFinite ? size.height : 0)
+
         #if DEBUG
-        return true
-        #else
-        return false
+        if size.width != validWidth || size.height != validHeight {
+            MasonryLogger.warning("Validation: 尺寸验证修正 \(context): \(size) -> \(CGSize(width: validWidth, height: validHeight))")
+        }
+        #endif
+
+        return CGSize(width: validWidth, height: validHeight)
+    }
+}
+
+// MARK: - 简化日志系统
+
+/// 简化的日志工具
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal enum MasonryLogger {
+    /// 调试信息
+    static func debug(_ message: String) {
+        #if DEBUG
+        print("🔵 SwiftUIMasonryLayouts: \(message)")
+        #endif
+    }
+
+    /// 一般信息
+    static func info(_ message: String) {
+        #if DEBUG
+        print("🟢 SwiftUIMasonryLayouts: \(message)")
+        #endif
+    }
+
+    /// 警告信息
+    static func warning(_ message: String) {
+        #if DEBUG
+        print("🟡 SwiftUIMasonryLayouts: \(message)")
+        #endif
+    }
+
+    /// 错误信息
+    static func error(_ message: String) {
+        #if DEBUG
+        print("🔴 SwiftUIMasonryLayouts: \(message)")
         #endif
     }
 }

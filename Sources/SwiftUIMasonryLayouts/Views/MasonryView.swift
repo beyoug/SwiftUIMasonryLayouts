@@ -18,11 +18,11 @@ public struct MasonryView<Content: View>: View {
     /// 行/列配置
     private let lines: MasonryLines
     /// 水平间距
-    private let horizontalSpacing: CGFloat
+    private let hSpacing: CGFloat
     /// 垂直间距
-    private let verticalSpacing: CGFloat
+    private let vSpacing: CGFloat
     /// 放置模式
-    private let placementMode: MasonryPlacementMode
+    private let placement: MasonryPlacementMode
     /// 响应式断点配置（可选）
     private let breakpoints: [CGFloat: MasonryConfiguration]?
     /// 内容构建器
@@ -41,23 +41,23 @@ public struct MasonryView<Content: View>: View {
     /// - Parameters:
     ///   - axis: 布局轴向
     ///   - lines: 行/列配置
-    ///   - horizontalSpacing: 水平间距
-    ///   - verticalSpacing: 垂直间距
-    ///   - placementMode: 放置模式
+    ///   - hSpacing: 水平间距
+    ///   - vSpacing: 垂直间距
+    ///   - placement: 放置模式
     ///   - content: 内容构建器
     public init(
         axis: Axis = .vertical,
         lines: MasonryLines = .fixed(2),
-        horizontalSpacing: CGFloat = 8,
-        verticalSpacing: CGFloat = 8,
-        placementMode: MasonryPlacementMode = .fill,
+        hSpacing: CGFloat = 8,
+        vSpacing: CGFloat = 8,
+        placement: MasonryPlacementMode = .fill,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.axis = axis
         self.lines = lines
-        self.horizontalSpacing = horizontalSpacing
-        self.verticalSpacing = verticalSpacing
-        self.placementMode = placementMode
+        self.hSpacing = hSpacing
+        self.vSpacing = vSpacing
+        self.placement = placement
         self.breakpoints = nil
         self.content = content
     }
@@ -72,9 +72,9 @@ public struct MasonryView<Content: View>: View {
     ) {
         self.axis = .vertical
         self.lines = .fixed(2)
-        self.horizontalSpacing = 8
-        self.verticalSpacing = 8
-        self.placementMode = .fill
+        self.hSpacing = 8
+        self.vSpacing = 8
+        self.placement = .fill
         self.breakpoints = breakpoints
         self.content = content
     }
@@ -96,9 +96,9 @@ public struct MasonryView<Content: View>: View {
                 MasonryLayout(
                     axis: axis,
                     lines: lines,
-                    horizontalSpacing: horizontalSpacing,
-                    verticalSpacing: verticalSpacing,
-                    placementMode: placementMode
+                    hSpacing: hSpacing,
+                    vSpacing: vSpacing,
+                    placement: placement
                 ) {
                     content()
                 }
@@ -122,9 +122,9 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
             MasonryLayout(
                 axis: config.axis,
                 lines: config.lines,
-                horizontalSpacing: config.horizontalSpacing,
-                verticalSpacing: config.verticalSpacing,
-                placementMode: config.placementMode
+                hSpacing: config.hSpacing,
+                vSpacing: config.vSpacing,
+                placement: config.placement
             ) {
                 content()
             }
@@ -167,34 +167,15 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
 
         let configChanged = currentConfiguration?.lines != newConfig.lines ||
                            currentConfiguration?.axis != newConfig.axis ||
-                           currentConfiguration?.placementMode != newConfig.placementMode
+                           currentConfiguration?.placement != newConfig.placement
 
         if configChanged {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentConfiguration = newConfig
             }
-        } else if currentConfiguration?.horizontalSpacing != newConfig.horizontalSpacing ||
-                  currentConfiguration?.verticalSpacing != newConfig.verticalSpacing {
+        } else if currentConfiguration?.hSpacing != newConfig.hSpacing ||
+                  currentConfiguration?.vSpacing != newConfig.vSpacing {
             currentConfiguration = newConfig
         }
-    }
-}
-
-
-
-// MARK: - 调试辅助
-
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public extension MasonryView {
-
-    /// 启用调试模式（显示布局边界）
-    /// - Parameter enabled: 是否启用
-    /// - Returns: 带调试信息的视图
-    func debugLayout(_ enabled: Bool = true) -> some View {
-        self.overlay(
-            enabled ? Rectangle()
-                .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                .allowsHitTesting(false) : nil
-        )
     }
 }
