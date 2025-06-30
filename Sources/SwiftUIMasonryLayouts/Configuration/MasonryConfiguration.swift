@@ -39,7 +39,7 @@ public extension MasonryLines {
     static func adaptive(minSize: CGFloat) -> MasonryLines {
         let correctedSize = max(1, minSize)
         if minSize <= 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 最小尺寸必须大于0，已自动修正为1")
+            MasonryInternalConfig.Logger.warning("最小尺寸必须大于0，已自动修正为1")
         }
         return .adaptive(sizeConstraint: .min(correctedSize))
     }
@@ -49,7 +49,7 @@ public extension MasonryLines {
     static func adaptive(maxSize: CGFloat) -> MasonryLines {
         let correctedSize = max(1, maxSize)
         if maxSize <= 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 最大尺寸必须大于0，已自动修正为1")
+            MasonryInternalConfig.Logger.warning("最大尺寸必须大于0，已自动修正为1")
         }
         return .adaptive(sizeConstraint: .max(correctedSize))
     }
@@ -93,42 +93,45 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     /// 行/列配置
     public let lines: MasonryLines
     /// 水平间距
-    public let horizontalSpacing: CGFloat
+    public let hSpacing: CGFloat
     /// 垂直间距
-    public let verticalSpacing: CGFloat
+    public let vSpacing: CGFloat
     /// 放置模式
-    public let placementMode: MasonryPlacementMode
-    
+    public let placement: MasonryPlacementMode
+    /// 简化的智能尺寸配置
+    public let simpleSizing: SimpleSizingConfiguration?
+
     // MARK: - 初始化
     
     /// 创建瀑布流配置
     /// - Parameters:
     ///   - axis: 布局轴向，默认为垂直
     ///   - lines: 行/列配置，默认为2列
-    ///   - horizontalSpacing: 水平间距，默认为8
-    ///   - verticalSpacing: 垂直间距，默认为8
-    ///   - placementMode: 放置模式，默认为智能填充
+    ///   - hSpacing: 水平间距，默认为8
+    ///   - vSpacing: 垂直间距，默认为8
+    ///   - placement: 放置模式，默认为智能填充
+    ///   - simpleSizing: 简化的智能尺寸配置，默认为nil（使用传统计算）
     public init(
         axis: Axis = .vertical,
         lines: MasonryLines = .fixed(2),
-        horizontalSpacing: CGFloat = 8,
-        verticalSpacing: CGFloat = 8,
-        placementMode: MasonryPlacementMode = .fill
+        hSpacing: CGFloat = 8,
+        vSpacing: CGFloat = 8,
+        placement: MasonryPlacementMode = .fill,
+        simpleSizing: SimpleSizingConfiguration? = nil
     ) {
         self.axis = axis
         self.lines = lines
-        self.horizontalSpacing = max(0, horizontalSpacing)
-        self.verticalSpacing = max(0, verticalSpacing)
-        self.placementMode = placementMode
-        
-        #if DEBUG
-        if horizontalSpacing < 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 水平间距不能为负数，已自动修正为0")
+        self.hSpacing = max(0, hSpacing)
+        self.vSpacing = max(0, vSpacing)
+        self.placement = placement
+        self.simpleSizing = simpleSizing
+
+        if hSpacing < 0 {
+            MasonryInternalConfig.Logger.warning("水平间距不能为负数，已自动修正为0")
         }
-        if verticalSpacing < 0 {
-            print("⚠️ SwiftUIMasonryLayouts: 垂直间距不能为负数，已自动修正为0")
+        if vSpacing < 0 {
+            MasonryInternalConfig.Logger.warning("垂直间距不能为负数，已自动修正为0")
         }
-        #endif
     }
 }
 
@@ -144,6 +147,15 @@ public extension MasonryConfiguration {
 
     /// 水平双行配置
     static let twoRows = rows(2)
+
+    /// 黄金比例配置
+    static let golden = MasonryConfiguration(simpleSizing: .default)
+
+    /// 正方形配置
+    static let square = MasonryConfiguration(simpleSizing: .square)
+
+    /// 自适应配置
+    static let adaptive = MasonryConfiguration(simpleSizing: .adaptive)
 }
 
 // MARK: - 便捷方法
@@ -159,11 +171,11 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: .vertical,
             lines: .fixed(max(1, count)),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
     }
-    
+
     /// 创建固定行数的水平配置
     /// - Parameters:
     ///   - rows: 行数
@@ -173,8 +185,8 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: .horizontal,
             lines: .fixed(max(1, count)),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
     }
     
@@ -187,8 +199,8 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: .vertical,
             lines: .adaptive(minSize: minColumnWidth),
-            horizontalSpacing: spacing,
-            verticalSpacing: spacing
+            hSpacing: spacing,
+            vSpacing: spacing
         )
     }
     
@@ -201,9 +213,10 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: axis,
             lines: lines,
-            horizontalSpacing: max(0, horizontal),
-            verticalSpacing: max(0, vertical),
-            placementMode: placementMode
+            hSpacing: max(0, horizontal),
+            vSpacing: max(0, vertical),
+            placement: placement,
+            simpleSizing: simpleSizing
         )
     }
 
@@ -214,11 +227,13 @@ public extension MasonryConfiguration {
         MasonryConfiguration(
             axis: axis,
             lines: lines,
-            horizontalSpacing: horizontalSpacing,
-            verticalSpacing: verticalSpacing,
-            placementMode: mode
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: mode
         )
     }
+
+
 }
 
 // MARK: - 内部配置常量
@@ -232,19 +247,19 @@ internal enum MasonryInternalConfig {
     /// 响应式布局防抖延迟（纳秒）
     static let responsiveDebounceDelay: UInt64 = 50_000_000 // 50ms
 
-    /// 最大缓存项目数量
-    static let maxCacheSize: Int = 1000
+    /// 最大缓存项目数量（优化后）
+    static let maxCacheSize: Int = 2000
 
-    /// 布局缓存最大数量
-    static let maxLayoutCacheSize: Int = 50
+    /// 布局缓存最大数量（优化后）
+    static let maxLayoutCacheSize: Int = 100
+
+    /// 缓存有效期（秒）
+    static let cacheValidityPeriod: TimeInterval = 300 // 5分钟
+
+    /// 内存压力清理阈值
+    static let memoryPressureThreshold: Int = 3
 
     // MARK: - 默认值常量
-
-    /// 默认水平间距
-    static let defaultHorizontalSpacing: CGFloat = 8
-
-    /// 默认垂直间距
-    static let defaultVerticalSpacing: CGFloat = 8
 
     /// 默认列数
     static let defaultColumnCount: Int = 2
@@ -255,14 +270,36 @@ internal enum MasonryInternalConfig {
     /// 推断容器尺寸时的最小高度
     static let minimumInferredHeight: CGFloat = 200
 
-    // MARK: - 调试开关（基于编译模式）
+    // MARK: - 日志系统
 
-    /// 是否启用内部调试日志
-    static var enableInternalLogging: Bool {
-        #if DEBUG
-        return true
-        #else
-        return false
-        #endif
+    /// 内部日志记录器
+    internal enum Logger {
+        /// 记录错误信息（仅在DEBUG模式下显示）
+        static func error(_ message: String) {
+            #if DEBUG
+            print("🔴 SwiftUIMasonryLayouts: \(message)")
+            #endif
+        }
+
+        /// 记录警告信息（仅在DEBUG模式下显示）
+        static func warning(_ message: String) {
+            #if DEBUG
+            print("🟡 SwiftUIMasonryLayouts: \(message)")
+            #endif
+        }
+
+        /// 记录信息日志（仅在DEBUG模式下显示）
+        static func info(_ message: String) {
+            #if DEBUG
+            print("🔵 SwiftUIMasonryLayouts: \(message)")
+            #endif
+        }
+
+        /// 记录调试日志（仅在DEBUG模式下显示）
+        static func debug(_ message: String) {
+            #if DEBUG
+            print("🟢 SwiftUIMasonryLayouts: \(message)")
+            #endif
+        }
     }
 }

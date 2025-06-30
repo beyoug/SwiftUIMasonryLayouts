@@ -4,6 +4,124 @@
 
 import SwiftUI
 
+// MARK: - LRU缓存实现
+
+/// LRU (Least Recently Used) 缓存实现
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+internal final class LRUCache<Key: Hashable, Value>: @unchecked Sendable {
+    private let maxSize: Int
+    private var cache: [Key: Node] = [:]
+    private var head: Node?
+    private var tail: Node?
+    private let lock = NSLock()
+
+    private final class Node {
+        let key: Key
+        var value: Value
+        var prev: Node?
+        var next: Node?
+
+        init(key: Key, value: Value) {
+            self.key = key
+            self.value = value
+        }
+    }
+
+    init(maxSize: Int) {
+        self.maxSize = max(1, maxSize)
+    }
+
+    func get(_ key: Key) -> Value? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let node = cache[key] else { return nil }
+        moveToHead(node)
+        return node.value
+    }
+
+    func set(_ key: Key, value: Value) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let existingNode = cache[key] {
+            existingNode.value = value
+            moveToHead(existingNode)
+            return
+        }
+
+        let newNode = Node(key: key, value: value)
+        cache[key] = newNode
+        addToHead(newNode)
+
+        if cache.count > maxSize {
+            removeLeastUsed()
+        }
+    }
+
+    func remove(_ key: Key) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let node = cache[key] else { return }
+        cache.removeValue(forKey: key)
+        removeNode(node)
+    }
+
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        cache.removeAll()
+        head = nil
+        tail = nil
+    }
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return cache.count
+    }
+
+    // MARK: - Private Methods
+
+    private func addToHead(_ node: Node) {
+        node.prev = nil
+        node.next = head
+        head?.prev = node
+        head = node
+
+        if tail == nil {
+            tail = node
+        }
+    }
+
+    private func removeNode(_ node: Node) {
+        if node.prev != nil {
+            node.prev?.next = node.next
+        } else {
+            head = node.next
+        }
+
+        if node.next != nil {
+            node.next?.prev = node.prev
+        } else {
+            tail = node.prev
+        }
+    }
+
+    private func moveToHead(_ node: Node) {
+        removeNode(node)
+        addToHead(node)
+    }
+
+    private func removeLeastUsed() {
+        guard let lastNode = tail else { return }
+        cache.removeValue(forKey: lastNode.key)
+        removeNode(lastNode)
+    }
+}
+
 // MARK: - 布局缓存系统
 
 /// 瀑布流布局缓存
@@ -35,9 +153,17 @@ public struct LayoutCache {
     
     /// 检查尺寸是否兼容（允许小幅度变化）
     func isSizeCompatible(with size: CGSize) -> Bool {
-        let tolerance: CGFloat = 1.0
-        return abs(lastContainerSize.width - size.width) <= tolerance &&
-               abs(lastContainerSize.height - size.height) <= tolerance
+        // 使用相对容差而不是固定容差，适应不同屏幕尺寸
+        let relativeTolerance: CGFloat = 0.001 // 0.1%的相对容差
+        let minAbsoluteTolerance: CGFloat = 0.5 // 最小绝对容差
+
+        let widthTolerance = max(minAbsoluteTolerance, lastContainerSize.width * relativeTolerance)
+        let heightTolerance = max(minAbsoluteTolerance, lastContainerSize.height * relativeTolerance)
+
+        let widthCompatible = abs(lastContainerSize.width - size.width) <= widthTolerance
+        let heightCompatible = abs(lastContainerSize.height - size.height) <= heightTolerance
+
+        return widthCompatible && heightCompatible
     }
 
     mutating func recordCacheHit() {
@@ -81,72 +207,7 @@ public struct CacheStatistics {
     public var totalRequests: Int { hits + misses }
 }
 
-/// 专门为懒加载场景优化的布局缓存
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-internal struct LazyLayoutCache {
-    private var itemSizes: [AnyHashable: CGSize] = [:]
-    private var layoutResults: [String: LazyLayoutResult] = [:]
-    private let maxCacheSize: Int = 50
-    private let maxItemSizeCache: Int = 1000
-    
-    /// 缓存项目尺寸
-    mutating func cacheItemSize<ID: Hashable>(for id: ID, size: CGSize) {
-        // 防止无限增长
-        if itemSizes.count >= maxItemSizeCache {
-            // 智能清理：优先保留最近使用的缓存
-            cleanupOldCache()
-        }
-        itemSizes[AnyHashable(id)] = size
-    }
-
-    /// 智能清理旧缓存
-    private mutating func cleanupOldCache() {
-        let targetSize = maxItemSizeCache * 3 / 4 // 保留75%的缓存
-        let removeCount = itemSizes.count - targetSize
-
-        guard removeCount > 0 else { return }
-
-        // 随机移除一部分缓存，避免总是移除相同的项目
-        let keysToRemove = Array(itemSizes.keys.shuffled().prefix(removeCount))
-        for key in keysToRemove {
-            itemSizes.removeValue(forKey: key)
-        }
-
-
-    }
-    
-    /// 获取缓存的项目尺寸
-    func getCachedItemSize<ID: Hashable>(for id: ID) -> CGSize? {
-        return itemSizes[AnyHashable(id)]
-    }
-    
-    /// 缓存布局结果
-    mutating func cacheLayoutResult(for key: String, result: LazyLayoutResult) {
-        if layoutResults.count >= maxCacheSize {
-            if let firstKey = layoutResults.keys.first {
-                layoutResults.removeValue(forKey: firstKey)
-            }
-        }
-        layoutResults[key] = result
-    }
-    
-    /// 获取缓存的布局结果
-    func getCachedLayoutResult(for key: String) -> LazyLayoutResult? {
-        return layoutResults[key]
-    }
-    
-    /// 清除所有缓存
-    mutating func invalidate() {
-        itemSizes.removeAll()
-        layoutResults.removeAll()
-    }
-
-    /// 清理过期的项目尺寸缓存
-    mutating func cleanupItemSizes<ID: Hashable>(validIds: Set<ID>) {
-        let validHashableIds = Set(validIds.map { AnyHashable($0) })
-        itemSizes = itemSizes.filter { validHashableIds.contains($0.key) }
-    }
-}
+// LazyLayoutCache 现在定义在 MasonryLayoutTypes.swift 中
 
 // MARK: - 缓存管理器
 
@@ -171,16 +232,45 @@ internal struct CacheManager {
         return hasher.finalize()
     }
     
-    /// 生成懒加载缓存键
+    /// 生成懒加载缓存键（改进版本）
     static func generateLazyCacheKey(
         configuration: MasonryConfiguration,
         containerSize: CGSize,
         itemCount: Int
     ) -> String {
-        return "\(configuration.hashValue)_\(Int(containerSize.width))x\(Int(containerSize.height))_\(itemCount)"
+        // 使用更精确的尺寸表示，但保持合理的精度
+        let widthKey = String(format: "%.1f", containerSize.width)
+        let heightKey = String(format: "%.1f", containerSize.height)
+
+        return "\(configuration.hashValue)_\(widthKey)x\(heightKey)_\(itemCount)"
+    }
+
+    /// 生成更稳定的配置哈希值
+    static func generateStableConfigurationHash(
+        axis: Axis,
+        lines: MasonryLines,
+        horizontalSpacing: CGFloat,
+        verticalSpacing: CGFloat,
+        placementMode: MasonryPlacementMode
+    ) -> Int {
+        var hasher = Hasher()
+
+        // 使用稳定的哈希策略
+        hasher.combine(axis.hashValue)
+        hasher.combine(lines.hashValue)
+
+        // 对间距进行舍入以提高缓存命中率
+        let roundedHSpacing = (horizontalSpacing * 10).rounded() / 10
+        let roundedVSpacing = (verticalSpacing * 10).rounded() / 10
+
+        hasher.combine(roundedHSpacing)
+        hasher.combine(roundedVSpacing)
+        hasher.combine(placementMode.hashValue)
+
+        return hasher.finalize()
     }
     
-    /// 检查缓存是否有效
+    /// 检查缓存是否有效（增强版本）
     static func isCacheValid(
         cache: LayoutCache,
         containerSize: CGSize,
@@ -188,9 +278,40 @@ internal struct CacheManager {
         subviewCount: Int
     ) -> Bool {
         guard let cachedResult = cache.cachedResult else { return false }
-        
-        return cache.isSizeCompatible(with: containerSize) &&
-               cache.lastConfigurationHash == configurationHash &&
-               cachedResult.itemFrames.count == subviewCount
+
+        // 基本有效性检查
+        let basicValid = cache.isSizeCompatible(with: containerSize) &&
+                        cache.lastConfigurationHash == configurationHash &&
+                        cachedResult.itemFrames.count == subviewCount
+
+        if !basicValid {
+            return false
+        }
+
+        // 检查缓存是否过期（可选的时间基础失效）
+        let currentTime = CFAbsoluteTimeGetCurrent()
+        let cacheAge = currentTime - cache.lastCalculationTime
+        let maxCacheAge: TimeInterval = 300 // 5分钟缓存有效期
+
+        if cacheAge > maxCacheAge {
+            return false
+        }
+
+        return true
+    }
+
+    /// 获取缓存性能报告
+    static func getCachePerformanceReport(cache: LayoutCache) -> String {
+        let stats = cache.statistics
+        let hitRate = stats.hitRate * 100
+        let avgCalculationTime = stats.lastCalculationTime * 1000
+
+        return """
+        缓存性能报告:
+        - 命中率: \(String(format: "%.1f", hitRate))%
+        - 命中次数: \(stats.hits)
+        - 未命中次数: \(stats.misses)
+        - 上次计算耗时: \(String(format: "%.2f", avgCalculationTime))ms
+        """
     }
 }
