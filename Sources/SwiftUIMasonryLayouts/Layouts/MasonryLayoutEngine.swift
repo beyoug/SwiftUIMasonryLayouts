@@ -35,28 +35,32 @@ internal struct MasonryLayoutEngine {
                 width: parameters.axis == .vertical ? lineSize : nil,
                 height: parameters.axis == .horizontal ? lineSize : nil
             ))
-            
+
+            // 验证项目尺寸的有效性
+            let validatedItemSize = MasonryInternal.validateSize(itemSize, context: "Item \(index)")
+
             let lineIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: index)
 
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else {
+                MasonryLogger.warning("Layout: 无效的行索引 \(lineIndex)，跳过项目 \(index)")
                 continue
             }
-            
+
             let frame = calculateItemFrame(
-                itemSize: itemSize,
+                itemSize: validatedItemSize,
                 lineIndex: lineIndex,
                 lineSize: lineSize,
                 lineOffset: lineOffsets[lineIndex],
                 parameters: parameters
             )
-            
+
             itemFrames.append(frame)
-            
+
             // 更新行偏移
             updateLineOffset(
                 &lineOffsets,
                 lineIndex: lineIndex,
-                itemSize: itemSize,
+                itemSize: validatedItemSize,
                 parameters: parameters
             )
         }
@@ -163,20 +167,29 @@ internal struct MasonryLayoutEngine {
         lineOffset: CGFloat,
         parameters: LayoutParameters
     ) -> CGRect {
+        // 确保所有值都是有效的
+        let safeLineIndex = max(0, lineIndex)
+        let safeLineSize = max(0, lineSize)
+        let safeLineOffset = max(0, lineOffset)
+
         if parameters.axis == .vertical {
-            return CGRect(
-                x: CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * parameters.hSpacing,
-                y: lineOffset,
-                width: lineSize,
-                height: itemSize.height
+            let x = CGFloat(safeLineIndex) * safeLineSize + CGFloat(safeLineIndex) * parameters.hSpacing
+            let frame = CGRect(
+                x: x,
+                y: safeLineOffset,
+                width: safeLineSize,
+                height: max(0, itemSize.height)
             )
+            return frame
         } else {
-            return CGRect(
-                x: lineOffset,
-                y: CGFloat(lineIndex) * lineSize + CGFloat(lineIndex) * parameters.vSpacing,
-                width: itemSize.width,
-                height: lineSize
+            let y = CGFloat(safeLineIndex) * safeLineSize + CGFloat(safeLineIndex) * parameters.vSpacing
+            let frame = CGRect(
+                x: safeLineOffset,
+                y: y,
+                width: max(0, itemSize.width),
+                height: safeLineSize
             )
+            return frame
         }
     }
     
@@ -202,23 +215,107 @@ internal struct MasonryLayoutEngine {
         sizeCalculator: ((Item, CGFloat) -> CGSize)?,
         cache: inout LazyLayoutCache
     ) -> CGSize {
-        
+
         // 首先检查缓存
         if let cachedSize = cache.getCachedItemSize(for: item.id) {
             return cachedSize
         }
-        
+
         // 使用自定义计算器
         if let calculator = sizeCalculator {
             return calculator(item, lineSize)
         }
-        
-        // 默认尺寸
-        if configuration.axis == .vertical {
-            return CGSize(width: lineSize, height: 150)
-        } else {
-            return CGSize(width: 150, height: lineSize)
+
+        // 智能默认尺寸计算
+        return calculateIntelligentDefaultSize(
+            item: item,
+            lineSize: lineSize,
+            configuration: configuration
+        )
+    }
+
+    /// 智能默认尺寸计算
+    /// 根据项目的属性智能推断合适的尺寸，避免所有项目使用相同尺寸
+    private static func calculateIntelligentDefaultSize<Item: Identifiable>(
+        item: Item,
+        lineSize: CGFloat,
+        configuration: MasonryConfiguration
+    ) -> CGSize {
+
+        // 尝试通过反射获取项目的尺寸属性
+        if let sizeFromReflection = extractSizeFromItem(item, lineSize: lineSize, configuration: configuration) {
+            return sizeFromReflection
         }
+
+        // 基础尺寸范围
+        let minHeight: CGFloat = 120
+        let minWidth: CGFloat = 120
+
+        // 使用项目ID的哈希值来生成伪随机但一致的尺寸
+        let hashValue = abs(item.id.hashValue)
+
+        if configuration.axis == .vertical {
+            // 垂直布局：固定宽度，变化高度
+            let heightVariation = CGFloat(hashValue % 180) + minHeight // 120-300范围
+            return CGSize(width: lineSize, height: heightVariation)
+        } else {
+            // 水平布局：固定高度，变化宽度
+            let widthVariation = CGFloat(hashValue % 180) + minWidth // 120-300范围
+            return CGSize(width: widthVariation, height: lineSize)
+        }
+    }
+
+    /// 通过反射尝试从项目中提取尺寸信息
+    private static func extractSizeFromItem<Item: Identifiable>(
+        _ item: Item,
+        lineSize: CGFloat,
+        configuration: MasonryConfiguration
+    ) -> CGSize? {
+        let mirror = Mirror(reflecting: item)
+
+        var width: CGFloat?
+        var height: CGFloat?
+
+        // 查找常见的尺寸属性
+        for child in mirror.children {
+            guard let label = child.label else { continue }
+
+            switch label.lowercased() {
+            case "width":
+                if let value = child.value as? CGFloat {
+                    width = value
+                } else if let value = child.value as? Double {
+                    width = CGFloat(value)
+                } else if let value = child.value as? Int {
+                    width = CGFloat(value)
+                }
+            case "height":
+                if let value = child.value as? CGFloat {
+                    height = value
+                } else if let value = child.value as? Double {
+                    height = CGFloat(value)
+                } else if let value = child.value as? Int {
+                    height = CGFloat(value)
+                }
+            default:
+                break
+            }
+        }
+
+        // 根据配置轴向返回合适的尺寸
+        if configuration.axis == .vertical {
+            // 垂直布局：使用lineSize作为宽度，height属性作为高度
+            if let h = height, h > 0 {
+                return CGSize(width: lineSize, height: h)
+            }
+        } else {
+            // 水平布局：使用width属性作为宽度，lineSize作为高度
+            if let w = width, w > 0 {
+                return CGSize(width: w, height: lineSize)
+            }
+        }
+
+        return nil
     }
 }
 

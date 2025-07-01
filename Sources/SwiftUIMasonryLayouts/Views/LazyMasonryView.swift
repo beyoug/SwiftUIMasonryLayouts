@@ -42,6 +42,7 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     @State private var visibleRange: Range<Data.Index>?
     @State private var layoutCache: LazyLayoutCache = LazyLayoutCache()
     @State private var debounceTask: Task<Void, Never>?
+    @State private var scrollOffset: CGPoint = .zero
     
     // MARK: - 初始化方法
     
@@ -125,12 +126,19 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
                         layoutCache: $layoutCache,
                         sizeCalculator: sizeCalculator,
                         content: content,
+                        externalScrollOffset: scrollOffset, // 传递滚动偏移
                         onVisibleRangeChanged: onVisibleRangeChanged,
                         onReachBottom: onReachBottom,
                         onReachTop: onReachTop
                     )
                 }
-                .coordinateSpace(name: "scroll")
+                .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                    // 使用 iOS 18 的新 API 获取滚动偏移
+                    return geometry.contentOffset
+                } action: { oldValue, newValue in
+                    // 更新滚动偏移状态
+                    scrollOffset = newValue
+                }
                 .onChange(of: geometry.size.width) { _, newWidth in
                     updateConfigurationWithDebounce(for: newWidth)
                 }

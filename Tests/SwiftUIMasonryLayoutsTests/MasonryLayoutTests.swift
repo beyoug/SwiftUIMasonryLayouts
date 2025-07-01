@@ -416,4 +416,122 @@ final class MasonryLayoutTests: XCTestCase {
         let expectedEfficiency = 2.0 / 3.0 // 2 hits out of 3 total
         XCTAssertEqual(cache.cacheHitRate, expectedEfficiency, accuracy: 0.01, "效率计算应该正确")
     }
+
+    // MARK: - 视图叠加问题修复测试
+
+    func testEmptyDataRangeHandling() {
+        // 测试空数据范围不会导致布局问题
+        let parameters = LayoutParameters(
+            containerSize: CGSize(width: 300, height: 400),
+            axis: .vertical,
+            lines: .fixed(2),
+            hSpacing: 8,
+            vSpacing: 8,
+            placement: .fill
+        )
+
+        let lineCount = parameters.calculateLineCount()
+        XCTAssertEqual(lineCount, 2)
+
+        let lineSize = parameters.calculateLineSize(lineCount: lineCount)
+        XCTAssertGreaterThan(lineSize, 0)
+
+        // 测试空的行偏移数组
+        let emptyOffsets: [CGFloat] = []
+        let totalSize = parameters.calculateTotalSize(lineOffsets: emptyOffsets, lineSize: lineSize, lineCount: lineCount)
+        XCTAssertEqual(totalSize.width, lineSize * 2 + 8) // 两列 + 一个间距
+        XCTAssertEqual(totalSize.height, 0) // 没有内容，高度为0
+    }
+
+    func testInvalidLineIndexHandling() {
+        let parameters = LayoutParameters(
+            containerSize: CGSize(width: 300, height: 400),
+            axis: .vertical,
+            lines: .fixed(2),
+            hSpacing: 8,
+            vSpacing: 8,
+            placement: .fill
+        )
+
+        let lineOffsets: [CGFloat] = [0, 0]
+
+        // 测试负索引
+        let negativeIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: -1)
+        XCTAssertGreaterThanOrEqual(negativeIndex, 0)
+        XCTAssertLessThan(negativeIndex, lineOffsets.count)
+
+        // 测试超出范围的索引
+        let largeIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: 1000)
+        XCTAssertGreaterThanOrEqual(largeIndex, 0)
+        XCTAssertLessThan(largeIndex, lineOffsets.count)
+    }
+
+    func testTotalSizeCalculationWithZeroContent() {
+        let parameters = LayoutParameters(
+            containerSize: CGSize(width: 300, height: 400),
+            axis: .vertical,
+            lines: .fixed(3),
+            hSpacing: 10,
+            vSpacing: 12,
+            placement: .fill
+        )
+
+        // 测试没有内容时的总尺寸计算
+        let emptyOffsets: [CGFloat] = [0, 0, 0]
+        let lineSize: CGFloat = 90
+        let totalSize = parameters.calculateTotalSize(lineOffsets: emptyOffsets, lineSize: lineSize, lineCount: 3)
+
+        // 宽度应该是：3列 * 90 + 2个间距 * 10 = 290
+        XCTAssertEqual(totalSize.width, 290)
+        // 高度应该是0（没有内容）
+        XCTAssertEqual(totalSize.height, 0)
+    }
+
+    func testAdaptiveColumnCalculation() {
+        // 测试自适应列数计算的修复
+        let parameters = LayoutParameters(
+            containerSize: CGSize(width: 320, height: 400),
+            axis: .vertical,
+            lines: .adaptive(minSize: 100),
+            hSpacing: 8,
+            vSpacing: 8,
+            placement: .fill
+        )
+
+        let lineCount = parameters.calculateLineCount()
+
+        // 容器宽度320，最小列宽100，间距8
+        // 理论上可以放3列：100 + 8 + 100 + 8 + 100 = 316 < 320 ✓
+        // 但4列：100 + 8 + 100 + 8 + 100 + 8 + 100 = 424 > 320 ✗
+        XCTAssertEqual(lineCount, 3, "应该计算出3列")
+
+        let lineSize = parameters.calculateLineSize(lineCount: lineCount)
+
+        // 验证实际列宽：(320 - 2*8) / 3 = 304/3 ≈ 101.33 > 100 ✓
+        let expectedLineSize = CGFloat(320 - 2 * 8) / CGFloat(3)
+        XCTAssertEqual(lineSize, expectedLineSize, accuracy: 0.1)
+        XCTAssertGreaterThanOrEqual(lineSize, 100.0, "实际列宽应该不小于最小列宽")
+    }
+
+    func testAdaptiveColumnCalculationEdgeCase() {
+        // 测试边界情况：容器很小
+        let parameters = LayoutParameters(
+            containerSize: CGSize(width: 150, height: 400),
+            axis: .vertical,
+            lines: .adaptive(minSize: 100),
+            hSpacing: 8,
+            vSpacing: 8,
+            placement: .fill
+        )
+
+        let lineCount = parameters.calculateLineCount()
+
+        // 容器宽度150，最小列宽100，间距8
+        // 只能放1列：100 < 150 ✓
+        // 2列：100 + 8 + 100 = 208 > 150 ✗
+        XCTAssertEqual(lineCount, 1, "小容器应该只有1列")
+
+        let lineSize = parameters.calculateLineSize(lineCount: lineCount)
+        XCTAssertEqual(lineSize, 150.0, "单列时应该占满容器宽度")
+    }
 }

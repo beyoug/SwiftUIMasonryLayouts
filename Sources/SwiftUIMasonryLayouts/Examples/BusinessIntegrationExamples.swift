@@ -61,7 +61,7 @@ struct BasicMasonryViewExample: View {
 /// 2. MasonryView - 自定义列数
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct ColumnsMasonryViewExample: View {
-    private let items = (1...20).map { DemoItem(id: $0) }
+    private let items = (1...30).map { DemoItem(id: $0) }
 
     var body: some View {
         ScrollView {
@@ -76,7 +76,6 @@ struct ColumnsMasonryViewExample: View {
                             itemView(item)
                         }
                     }
-                    .frame(height: 200)
                 }
 
                 VStack(spacing: 10) {
@@ -85,11 +84,10 @@ struct ColumnsMasonryViewExample: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     MasonryView(lines: .fixed(3)) {
-                        ForEach(items.dropFirst(5).prefix(15)) { item in
+                        ForEach(items.dropFirst(5).prefix(12)) { item in
                             itemView(item)
                         }
                     }
-                    .frame(height: 300)
                 }
 
                 VStack(spacing: 10) {
@@ -98,11 +96,10 @@ struct ColumnsMasonryViewExample: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     MasonryView(lines: .fixed(4)) {
-                        ForEach(items.dropFirst(20)) { item in
+                        ForEach(items.dropFirst(17).prefix(13)) { item in
                             itemView(item)
                         }
                     }
-                    .frame(height: 300)
                 }
             }
             .padding()
@@ -127,7 +124,7 @@ struct ColumnsMasonryViewExample: View {
 /// 3. MasonryView - 自适应配置
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct AdaptiveMasonryViewExample: View {
-    private let items = (1...25).map { DemoItem(id: $0) }
+    private let items = (1...30).map { DemoItem(id: $0) }
 
     var body: some View {
         ScrollView {
@@ -142,7 +139,6 @@ struct AdaptiveMasonryViewExample: View {
                             itemView(item, minWidth: 100)
                         }
                     }
-                    .frame(height: 250)
                 }
 
                 VStack(spacing: 10) {
@@ -151,11 +147,10 @@ struct AdaptiveMasonryViewExample: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     MasonryView(lines: .adaptive(minSize: 150)) {
-                        ForEach(items.dropFirst(12)) { item in
+                        ForEach(items.dropFirst(12).prefix(18)) { item in
                             itemView(item, minWidth: 150)
                         }
                     }
-                    .frame(height: 250)
                 }
             }
             .padding()
@@ -211,7 +206,7 @@ struct HorizontalMasonryViewExample: View {
 /// 5. MasonryView - 间距配置
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct SpacingMasonryViewExample: View {
-    private let items = (1...24).map { DemoItem(id: $0) }
+    private let items = (1...30).map { DemoItem(id: $0) }
 
     var body: some View {
         ScrollView {
@@ -226,7 +221,6 @@ struct SpacingMasonryViewExample: View {
                             itemView(item)
                         }
                     }
-                    .frame(height: 150)
                 }
 
                 VStack(spacing: 10) {
@@ -239,7 +233,6 @@ struct SpacingMasonryViewExample: View {
                             itemView(item)
                         }
                     }
-                    .frame(height: 150)
                 }
 
                 VStack(spacing: 10) {
@@ -252,7 +245,6 @@ struct SpacingMasonryViewExample: View {
                             itemView(item)
                         }
                     }
-                    .frame(height: 150)
                 }
 
                 VStack(spacing: 10) {
@@ -261,11 +253,10 @@ struct SpacingMasonryViewExample: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     MasonryView(hSpacing: 8, vSpacing: 20) {
-                        ForEach(items.dropFirst(18)) { item in
+                        ForEach(items.dropFirst(18).prefix(12)) { item in
                             itemView(item)
                         }
                     }
-                    .frame(height: 150)
                 }
             }
             .padding()
@@ -290,7 +281,7 @@ struct SpacingMasonryViewExample: View {
 /// 6. MasonryView - 放置模式
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct PlacementModeMasonryViewExample: View {
-    private let items = (1...20).map { DemoItem(id: $0) }
+    private let items = (1...25).map { DemoItem(id: $0) }
 
     var body: some View {
         ScrollView {
@@ -309,7 +300,6 @@ struct PlacementModeMasonryViewExample: View {
                             itemView(item, mode: "Fill")
                         }
                     }
-                    .frame(height: 200)
                 }
 
                 VStack(spacing: 10) {
@@ -322,11 +312,10 @@ struct PlacementModeMasonryViewExample: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     MasonryView(placement: .order) {
-                        ForEach(items.dropFirst(10)) { item in
+                        ForEach(items.dropFirst(10).prefix(15)) { item in
                             itemView(item, mode: "Order")
                         }
                     }
-                    .frame(height: 200)
                 }
             }
             .padding()
@@ -409,10 +398,17 @@ struct ResponsiveMasonryViewExample: View {
 /// 8. 基础 LazyMasonryView - 默认配置
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct BasicLazyMasonryViewExample: View {
-    private let items = (1...100).map { DemoItem(id: $0) }
+    private let items = (1...50).map { DemoItem(id: $0) }
 
     var body: some View {
-        LazyMasonryView(items, configuration: .default) { item in
+        LazyMasonryView(
+            items,
+            configuration: .default,
+            sizeCalculator: { item, lineSize in
+                // 使用项目的实际高度
+                CGSize(width: lineSize, height: item.height)
+            }
+        ) { item in
             Rectangle()
                 .fill(item.color)
                 .frame(maxWidth: .infinity)
@@ -437,7 +433,7 @@ struct BasicLazyMasonryViewExample: View {
 /// 9. LazyMasonryView - 便捷初始化
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct ConvenienceLazyMasonryViewExample: View {
-    private let items = (1...80).map { DemoItem(id: $0) }
+    private let items = (1...60).map { DemoItem(id: $0) }
 
     var body: some View {
         ScrollView {
@@ -447,21 +443,18 @@ struct ConvenienceLazyMasonryViewExample: View {
                 LazyMasonryView(items.prefix(20).map { $0 }) { item in
                     itemView(item, subtitle: "2列")
                 }
-                .frame(height: 300)
 
                 Text("三列布局")
                     .font(.headline)
                 LazyMasonryView(items.dropFirst(20).prefix(20).map { $0 }, columns: 3) { item in
                     itemView(item, subtitle: "3列")
                 }
-                .frame(height: 300)
 
                 Text("四列布局，大间距")
                     .font(.headline)
                 LazyMasonryView(items.dropFirst(40).prefix(20).map { $0 }, columns: 4, spacing: 16) { item in
                     itemView(item, subtitle: "4列")
                 }
-                .frame(height: 300)
             }
             .padding()
         }
@@ -490,7 +483,7 @@ struct ConvenienceLazyMasonryViewExample: View {
 /// 10. LazyMasonryView - 响应式配置
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 struct ResponsiveLazyMasonryViewExample: View {
-    private let items = (1...100).map { DemoItem(id: $0) }
+    private let items = (1...60).map { DemoItem(id: $0) }
 
     private let breakpoints: [CGFloat: MasonryConfiguration] = [
         0: .columns(1),

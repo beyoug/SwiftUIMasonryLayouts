@@ -243,14 +243,7 @@ internal struct LazyLayoutResult {
     let itemPositions: [AnyHashable: CGRect]
 }
 
-/// 滚动偏移检测
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-internal struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static let defaultValue: CGPoint = .zero
-    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
-        value = nextValue()
-    }
-}
+// 移除了 ScrollOffsetPreferenceKey，完全使用 iOS 18 onScrollGeometryChange API
 
 /// 布局计算参数
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
@@ -287,24 +280,52 @@ internal struct LayoutParameters {
                     MasonryLogger.warning("Validation: 最小尺寸无效 (\(minSize))，使用默认单列布局")
                     return 1
                 }
-                let count = Int(floor((availableSize + spacing) / (minSize + spacing)))
-                let validCount = max(1, count)
-                if count <= 0 {
-                    MasonryLogger.warning("Validation: 计算的自适应列数无效 (\(count))，已修正为 \(validCount)")
+                // 修正计算公式：先估算列数，然后验证是否能容纳
+                let estimatedCount = Int(floor(availableSize / minSize))
+                let actualCount = max(1, estimatedCount)
+
+                // 验证计算的列数是否合理
+                let totalSpacing = CGFloat(max(0, actualCount - 1)) * spacing
+                let actualMinSize = (availableSize - totalSpacing) / CGFloat(actualCount)
+
+                if actualMinSize < minSize && actualCount > 1 {
+                    // 如果实际尺寸小于最小尺寸，减少一列
+                    let adjustedCount = actualCount - 1
+                    let adjustedTotalSpacing = CGFloat(max(0, adjustedCount - 1)) * spacing
+                    let adjustedMinSize = (availableSize - adjustedTotalSpacing) / CGFloat(adjustedCount)
+
+                    if adjustedMinSize >= minSize {
+                        return adjustedCount
+                    }
                 }
-                return validCount
+
+                return actualCount
 
             case .max(let maxSize):
                 guard maxSize > 0 else {
                     MasonryLogger.warning("Validation: 最大尺寸无效 (\(maxSize))，使用默认单列布局")
                     return 1
                 }
-                let count = Int(ceil((availableSize + spacing) / (maxSize + spacing)))
-                let validCount = max(1, count)
-                if count <= 0 {
-                    MasonryLogger.warning("Validation: 计算的自适应列数无效 (\(count))，已修正为 \(validCount)")
+                // 修正计算公式：计算能容纳的最小列数，使每列不超过最大尺寸
+                let minCount = Int(ceil(availableSize / maxSize))
+                let actualCount = max(1, minCount)
+
+                // 验证计算的列数是否合理
+                let totalSpacing = CGFloat(max(0, actualCount - 1)) * spacing
+                let actualMaxSize = (availableSize - totalSpacing) / CGFloat(actualCount)
+
+                if actualMaxSize > maxSize {
+                    // 如果实际尺寸大于最大尺寸，增加一列
+                    let adjustedCount = actualCount + 1
+                    let adjustedTotalSpacing = CGFloat(max(0, adjustedCount - 1)) * spacing
+                    let adjustedMaxSize = (availableSize - adjustedTotalSpacing) / CGFloat(adjustedCount)
+
+                    if adjustedMaxSize <= maxSize {
+                        return adjustedCount
+                    }
                 }
-                return validCount
+
+                return actualCount
             }
         }
     }
@@ -335,15 +356,24 @@ internal struct LayoutParameters {
 
     /// 计算总尺寸
     func calculateTotalSize(lineOffsets: [CGFloat], lineSize: CGFloat, lineCount: Int) -> CGSize {
+        // 确保参数有效性
+        guard lineCount > 0, lineSize >= 0 else {
+            return .zero
+        }
+
         let maxOffset = lineOffsets.max() ?? 0
+        let safeLineCount = max(1, lineCount)
+        let safeLineSize = max(0, lineSize)
 
         if axis == .vertical {
-            let totalHeight = max(0, maxOffset - vSpacing)
-            let totalWidth = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * hSpacing
+            // 垂直布局：宽度由列数决定，高度由内容决定
+            let totalWidth = CGFloat(safeLineCount) * safeLineSize + CGFloat(max(0, safeLineCount - 1)) * hSpacing
+            let totalHeight = maxOffset > 0 ? max(0, maxOffset - vSpacing) : 0
             return CGSize(width: totalWidth, height: totalHeight)
         } else {
-            let totalWidth = max(0, maxOffset - hSpacing)
-            let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * vSpacing
+            // 水平布局：高度由行数决定，宽度由内容决定
+            let totalHeight = CGFloat(safeLineCount) * safeLineSize + CGFloat(max(0, safeLineCount - 1)) * vSpacing
+            let totalWidth = maxOffset > 0 ? max(0, maxOffset - hSpacing) : 0
             return CGSize(width: totalWidth, height: totalHeight)
         }
     }
