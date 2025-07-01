@@ -120,7 +120,7 @@ struct LazyMasonryExample: View {
 
 更多使用示例请参阅：
 
-- **[示例代码](Examples/BusinessIntegrationExamples.swift)** - 丰富的使用示例和集成案例
+- **[分页加载演示](Sources/SwiftUIMasonryLayouts/Examples/PaginationDemoExample.swift)** - 完整的分页加载示例，包含500条测试数据
 
 
 

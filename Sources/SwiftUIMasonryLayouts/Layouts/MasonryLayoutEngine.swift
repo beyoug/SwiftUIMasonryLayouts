@@ -454,6 +454,16 @@ internal struct LazyLayoutCache {
         layoutResults.removeAll()
     }
 
+    /// 清除特定项目的缓存
+    mutating func invalidateItem<ID: Hashable>(for id: ID) {
+        itemSizes.removeValue(forKey: AnyHashable(id))
+    }
+
+    /// 清除布局结果缓存（保留项目尺寸缓存）
+    mutating func invalidateLayoutResults() {
+        layoutResults.removeAll()
+    }
+
     /// 清理过期的项目尺寸缓存
     mutating func cleanupItemSizes<ID: Hashable>(validIds: Set<ID>) {
         let validHashableIds = Set(validIds.map { AnyHashable($0) })

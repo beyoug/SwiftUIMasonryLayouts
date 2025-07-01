@@ -36,6 +36,9 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     @State private var lastDataCount: Int = 0
     @State private var isIncrementalUpdateAvailable: Bool = false
     @State private var previousScrollOffset: CGPoint = .zero
+    @State private var lastBottomTriggerTime: TimeInterval = 0
+    @State private var lastBottomProtectionTime: TimeInterval = 0
+    @State private var isLayoutReady: Bool = false
     
     // MARK: - 视图主体
     
@@ -48,19 +51,26 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
                     MasonryLogger.info("容器尺寸: \(totalContentSize)")
                 }
 
-            ForEach(visibleItems, id: \.id) { item in
-                if let frame = itemPositions[item.id] {
-                    content(item)
-                        .frame(width: frame.width, height: frame.height)
-                        .offset(x: frame.minX, y: frame.minY)
-                } else {
-                    // 调试：检查哪些项目缺少位置信息
-                    Text("缺少位置: \(item.id)")
-                        .foregroundColor(.red)
-                        .onAppear {
-                            MasonryLogger.error("项目 \(item.id) 缺少位置信息")
-                        }
+            if isLayoutReady {
+                ForEach(visibleItems, id: \.id) { item in
+                    if let frame = itemPositions[item.id] {
+                        content(item)
+                            .frame(width: frame.width, height: frame.height)
+                            .offset(x: frame.minX, y: frame.minY)
+                    } else {
+                        // 调试：检查哪些项目缺少位置信息
+                        Text("缺少位置: \(item.id)")
+                            .foregroundColor(.red)
+                            .onAppear {
+                                MasonryLogger.error("项目 \(item.id) 缺少位置信息")
+                            }
+                    }
                 }
+            } else {
+                // 布局未准备好时显示占位符
+                Text("布局计算中...")
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .onAppear {
@@ -87,6 +97,9 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
     /// 当前可见的项目
     private var visibleItems: [Data.Element] {
+        // 如果布局未准备好，不返回任何项目
+        guard isLayoutReady else { return [] }
+
         guard let visibleRange = visibleRange else { return [] }
 
         let startIndex = max(data.startIndex, visibleRange.lowerBound)
@@ -116,6 +129,17 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             // 数据变化时，清理无效的位置信息
             cleanupInvalidPositions()
 
+            // 检查是否为数据重置（数量大幅减少或ID不连续）
+            if isDataReset(newDataCount: currentDataCount) {
+                // 数据重置时，强制完整重新计算并清理缓存
+                MasonryLogger.info("检测到数据重置，执行完整重新计算")
+                layoutCache.invalidate()
+                itemPositions.removeAll()
+                isIncrementalUpdateAvailable = false
+                isLayoutReady = false // 重置布局状态
+                visibleRange = nil // 重置可见范围，避免使用旧的范围
+            }
+
             // 检查是否可以进行增量更新
             if canPerformIncrementalUpdate(newDataCount: currentDataCount) {
                 performIncrementalUpdate(newDataCount: currentDataCount)
@@ -129,6 +153,27 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         // 更新状态
         lastDataCount = currentDataCount
         isIncrementalUpdateAvailable = true
+    }
+
+    /// 检测是否为数据重置
+    private func isDataReset(newDataCount: Int) -> Bool {
+        // 数据数量大幅减少（超过50%）
+        if newDataCount < lastDataCount / 2 {
+            return true
+        }
+
+        // 检查ID连续性（如果前几个项目的ID发生了变化，可能是重置）
+        if data.count >= 3 {
+            let firstThreeIds = Array(data.prefix(3)).map { $0.id }
+            let existingPositions = firstThreeIds.compactMap { itemPositions[$0] }
+
+            // 如果前三个项目中有超过一半没有位置信息，可能是新数据
+            if existingPositions.count < firstThreeIds.count / 2 {
+                return true
+            }
+        }
+
+        return false
     }
 
     /// 清理无效的位置信息
@@ -150,10 +195,19 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     /// 检查是否可以进行增量更新
     private func canPerformIncrementalUpdate(newDataCount: Int) -> Bool {
         // 只有在数据增加且之前有布局结果时才能增量更新
-        return isIncrementalUpdateAvailable &&
-               newDataCount > lastDataCount &&
-               newDataCount - lastDataCount <= 50 && // 限制增量更新的数量
-               !itemPositions.isEmpty
+        guard isIncrementalUpdateAvailable &&
+              newDataCount > lastDataCount &&
+              newDataCount - lastDataCount <= 50 && // 限制增量更新的数量
+              !itemPositions.isEmpty else {
+            return false
+        }
+
+        // 额外检查：确保现有数据的位置信息完整
+        let existingDataIds = Array(data.prefix(lastDataCount)).map { $0.id }
+        let existingPositions = existingDataIds.compactMap { itemPositions[$0] }
+
+        // 如果现有数据的位置信息不完整，不能进行增量更新
+        return existingPositions.count == existingDataIds.count
     }
 
     /// 执行增量布局更新
@@ -266,40 +320,70 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     
     /// 应用布局结果
     private func applyLayoutResult(_ result: LazyLayoutResult) {
-        // 转换位置字典
+        // 转换位置字典，只保留当前数据中存在的项目
+        let currentDataIds = Set(data.map { $0.id })
         var convertedPositions: [Data.Element.ID: CGRect] = [:]
+
         for (key, value) in result.itemPositions {
-            if let id = key as? Data.Element.ID {
+            if let id = key as? Data.Element.ID, currentDataIds.contains(id) {
                 convertedPositions[id] = value
             }
         }
-        itemPositions = convertedPositions
-        totalContentSize = result.totalSize
 
-        // 调试信息：检查是否所有项目都有位置
-        if convertedPositions.count != data.count {
-            MasonryLogger.warning("项目位置数量与数据项目数量不匹配! 位置:\(convertedPositions.count), 数据:\(data.count)")
+        // 在主线程上更新状态并进行验证
+        DispatchQueue.main.async {
+            // 更新状态
+            self.itemPositions = convertedPositions
+            self.totalContentSize = result.totalSize
 
-            // 详细分析不匹配的原因
-            let dataIds = Set(data.map { $0.id })
-            let positionIds = Set(convertedPositions.keys)
-            let missingIds = dataIds.subtracting(positionIds)
-            let extraIds = positionIds.subtracting(dataIds)
+            // 验证更新后的状态
+            if convertedPositions.count != self.data.count {
+                MasonryLogger.warning("项目位置数量与数据项目数量不匹配! 位置:\(convertedPositions.count), 数据:\(self.data.count)")
+                self.isLayoutReady = false
 
-            if !missingIds.isEmpty {
-                MasonryLogger.warning("缺少位置信息的项目ID: \(missingIds)")
+                // 详细分析不匹配的原因
+                let dataIds = Set(self.data.map { $0.id })
+                let positionIds = Set(convertedPositions.keys)
+                let missingIds = dataIds.subtracting(positionIds)
+                let extraIds = positionIds.subtracting(dataIds)
+
+                if !missingIds.isEmpty {
+                    MasonryLogger.warning("缺少位置信息的项目ID: \(missingIds)")
+                    // 延迟重新计算，避免无限循环
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.forceRecalculateLayout()
+                    }
+                }
+                if !extraIds.isEmpty {
+                    MasonryLogger.warning("多余的位置信息ID: \(extraIds)")
+                }
+            } else {
+                MasonryLogger.debug("布局计算完成，位置信息已同步 (\(convertedPositions.count)项)")
+                self.isLayoutReady = true // 布局准备完成
             }
-            if !extraIds.isEmpty {
-                MasonryLogger.warning("多余的位置信息ID: \(extraIds)")
-            }
-        } else {
-            MasonryLogger.debug("布局计算完成，位置信息已同步 (\(convertedPositions.count)项)")
         }
 
         // 初始化可见范围 - 使用更保守的初始计算
         if visibleRange == nil {
             updateInitialVisibleRange()
         }
+    }
+
+    /// 强制重新计算布局（用于修复数据不一致问题）
+    private func forceRecalculateLayout() {
+        MasonryLogger.info("强制重新计算布局")
+
+        // 清理所有缓存和状态
+        layoutCache.invalidate()
+        itemPositions.removeAll()
+        isIncrementalUpdateAvailable = false
+
+        // 重新计算
+        performFullLayoutCalculation(containerSize: geometry.size)
+
+        // 重置状态
+        lastDataCount = data.count
+        isIncrementalUpdateAvailable = true
     }
 
     /// 初始化可见范围（真正的懒加载实现）
@@ -417,7 +501,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         if shouldProtectLastItem(scrollOffset: scrollOffset, proposedWindowEnd: windowEnd) {
             windowEnd = data.count
             windowStart = max(0, windowEnd - maxWindowSize)
-            MasonryLogger.debug("🔒 底部保护触发")
+            MasonryLogger.debug("🔒 底部保护触发 - 数据量: \(data.count), 窗口: \(windowStart)..<\(windowEnd)")
         }
 
         let startIndex = data.index(data.startIndex, offsetBy: windowStart)
@@ -556,6 +640,19 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         return scrollY >= bottomThreshold
     }
 
+    /// 用于底部保护的更严格的检测（减少误触发）
+    private func isNearBottomForProtection(scrollOffset: CGPoint) -> Bool {
+        let scrollY = scrollOffset.y
+        let contentHeight = totalContentSize.height
+        let viewportHeight = geometry.size.height
+
+        // 使用更小的缓冲区，只在真正接近底部时才保护
+        let protectionBuffer = viewportHeight * 0.2 // 20%视口高度
+        let bottomThreshold = contentHeight - viewportHeight - protectionBuffer
+
+        return scrollY >= bottomThreshold
+    }
+
     /// 智能检测是否应该保护第一个项目
     private func shouldProtectFirstItem(scrollOffset: CGPoint, proposedWindowStart: Int) -> Bool {
         // 1. 顶部下拉时始终保护
@@ -594,6 +691,20 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             return false // 同步后重新计算
         }
 
+        // 如果数据量很少，不需要保护（避免小数据集的过度保护）
+        if data.count <= 30 {
+            return false
+        }
+
+        // 防抖机制：避免过度触发
+        let currentTime = Date().timeIntervalSince1970
+        let timeSinceLastProtection = currentTime - lastBottomProtectionTime
+
+        // 如果刚刚触发过保护，且时间间隔很短，则跳过
+        if timeSinceLastProtection < 0.5 { // 增加到500ms防抖
+            return false
+        }
+
         // 1. 如果最后一个项目仍在视口内，则保护
         if let lastItemPosition = getLastItemPosition() {
             let viewportTop = scrollOffset.y
@@ -602,12 +713,19 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             // 最后一个项目的顶部是否仍在视口内
             let lastItemTop = lastItemPosition.minY
             if lastItemTop <= viewportBottom {
+                lastBottomProtectionTime = currentTime
+                MasonryLogger.debug("🔒 保护原因: 最后项目在视口内")
                 return true
             }
         }
 
-        // 2. 接近底部时保护
-        return isNearBottom(scrollOffset: scrollOffset)
+        // 2. 接近底部时保护（使用更严格的条件）
+        let shouldProtect = isNearBottomForProtection(scrollOffset: scrollOffset)
+        if shouldProtect {
+            lastBottomProtectionTime = currentTime
+            MasonryLogger.debug("🔒 保护原因: 接近底部")
+        }
+        return shouldProtect
     }
 
     /// 获取第一个项目的位置
@@ -746,9 +864,20 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             onReachTop?()
         }
 
-        // 检查是否到达底部（向下滚动）
-        if scrollY + viewportHeight >= contentHeight - bottomThreshold && previousScrollOffset.y < offset.y {
+        // 检查是否到达底部（更宽松的检测策略）
+        let isNearBottom = scrollY + viewportHeight >= contentHeight - bottomThreshold
+        let isScrollingDown = previousScrollOffset.y < offset.y
+
+        // 防止重复触发
+        let currentTime = Date().timeIntervalSince1970
+        let timeSinceLastTrigger = currentTime - lastBottomTriggerTime
+
+        if isNearBottom && timeSinceLastTrigger > 1.0 { // 1秒防抖
+            MasonryLogger.debug("🎯 触发底部回调: scrollY=\(scrollY), viewportHeight=\(viewportHeight), contentHeight=\(contentHeight), bottomThreshold=\(bottomThreshold)")
+            lastBottomTriggerTime = currentTime
             onReachBottom?()
+        } else if isNearBottom {
+            MasonryLogger.debug("🔍 接近底部但未触发: isNearBottom=\(isNearBottom), isScrollingDown=\(isScrollingDown), timeSinceLastTrigger=\(timeSinceLastTrigger)")
         }
     }
 

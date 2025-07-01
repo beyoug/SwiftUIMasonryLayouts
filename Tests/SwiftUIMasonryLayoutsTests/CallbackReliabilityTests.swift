@@ -156,4 +156,31 @@ extension CallbackReliabilityTests {
         XCTAssertEqual(items.first?.id, 1, "第一个项目ID应正确")
         XCTAssertEqual(items.last?.id, 100, "最后一个项目ID应正确")
     }
+
+    func testDataResetScenario() {
+        // 测试数据重置场景，模拟CallbackDemoExample中的问题
+        var items = (1...20).map { TestItem(id: $0) }
+
+        // 模拟添加更多数据
+        let moreItems = (21...40).map { TestItem(id: $0) }
+        items.append(contentsOf: moreItems)
+
+        // 验证数据添加后的状态
+        XCTAssertEqual(items.count, 40, "应该有40个项目")
+        XCTAssertEqual(items.first?.id, 1, "第一个项目ID应该是1")
+        XCTAssertEqual(items.last?.id, 40, "最后一个项目ID应该是40")
+
+        // 模拟数据重置（使用新的连续ID）
+        let resetItems = (41...65).map { TestItem(id: $0) }
+        items = resetItems
+
+        // 验证重置后的数据
+        XCTAssertEqual(items.count, 25, "重置后应该有25个项目")
+        XCTAssertEqual(items.first?.id, 41, "重置后第一个项目ID应该是41")
+        XCTAssertEqual(items.last?.id, 65, "重置后最后一个项目ID应该是65")
+
+        // 验证ID的唯一性
+        let uniqueIds = Set(items.map { $0.id })
+        XCTAssertEqual(uniqueIds.count, items.count, "所有ID应该是唯一的")
+    }
 }
