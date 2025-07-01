@@ -8,7 +8,7 @@ import SwiftUI
 
 /// 瀑布流布局的核心实现
 /// 基于SwiftUI的Layout协议，专注于Layout协议的实现
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, macOS 15.0, *)
 public struct MasonryLayout: Layout, Sendable {
 
     // MARK: - 属性

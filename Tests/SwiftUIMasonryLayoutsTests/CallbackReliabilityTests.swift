@@ -31,12 +31,10 @@ final class CallbackReliabilityTests: XCTestCase {
         // 模拟真实数据驱动场景
         let items = (1...50).map { TestItem(id: $0) }
         var callbackCount = 0
-        var lastVisibleRange: Range<Array<TestItem>.Index>?
 
         // 创建回调
-        let onVisibleRangeChanged: (Range<Array<TestItem>.Index>) -> Void = { range in
+        let onVisibleRangeChanged: (Range<Array<TestItem>.Index>) -> Void = { _ in
             callbackCount += 1
-            lastVisibleRange = range
         }
 
         // 创建视图（模拟真实使用）
@@ -58,21 +56,18 @@ final class CallbackReliabilityTests: XCTestCase {
     func testCallbackConfigurationCorrectness() {
         // 测试回调配置的正确性
         let items = (1...20).map { TestItem(id: $0) }
-        var visibleRangeCallbackConfigured = false
-        var reachTopCallbackConfigured = false
-        var reachBottomCallbackConfigured = false
 
         let _ = LazyMasonryView(items, configuration: .columns(2)) { item in
             Rectangle().frame(height: item.height)
         }
         .onVisibleRangeChanged { _ in
-            visibleRangeCallbackConfigured = true
+            // 回调配置测试
         }
         .onReachTop {
-            reachTopCallbackConfigured = true
+            // 回调配置测试
         }
         .onReachBottom {
-            reachBottomCallbackConfigured = true
+            // 回调配置测试
         }
 
         // 验证回调配置

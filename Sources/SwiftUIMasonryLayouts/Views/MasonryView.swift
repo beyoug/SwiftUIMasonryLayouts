@@ -8,7 +8,7 @@ import SwiftUI
 
 /// 基础瀑布流视图组件
 /// 适用于静态内容和简单布局场景
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, macOS 15.0, *)
 public struct MasonryView<Content: View>: View {
     
     // MARK: - 属性
@@ -109,7 +109,7 @@ public struct MasonryView<Content: View>: View {
 
 // MARK: - 响应式布局内部组件
 
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, macOS 15.0, *)
 private struct ResponsiveMasonryLayout<Content: View>: View {
     let breakpoints: [CGFloat: MasonryConfiguration]
     @Binding var currentConfiguration: MasonryConfiguration?
