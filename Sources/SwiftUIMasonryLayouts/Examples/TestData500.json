@@ -2,7 +2,7 @@
   {
     "category" : "建筑",
     "color" : "blue",
-    "description" : "展现了建筑的独特魅力和美感展现了建筑的独特魅力和美感展现了建筑的独特魅力和美感",
+    "description" : "展现了建筑的独特魅力和美感",
     "height" : 100,
     "id" : 1,
     "tags" : [
@@ -10,12 +10,12 @@
       "创新",
       "设计"
     ],
-    "title" : "现代建筑设计现代建筑设计现代建筑设计现代建筑设计 1"
+    "title" : "现代建筑设计 1"
   },
   {
     "category" : "动物",
     "color" : "green",
-    "description" : "完美诠释了动物的精髓和内涵",
+    "description" : "完美诠释了动物的精髓和内涵完美诠释了动物的精髓和内涵",
     "height" : 207,
     "id" : 2,
     "tags" : [
@@ -28,7 +28,7 @@
   {
     "category" : "美食",
     "color" : "yellow",
-    "description" : "体现了美食的创展现了建筑的独特魅力和美感新与传统结合",
+    "description" : "体现了美食的创新与传统结合新与传统结合",
     "height" : 107,
     "id" : 3,
     "tags" : [
@@ -132,7 +132,7 @@
   {
     "category" : "工艺",
     "color" : "cyan",
-    "description" : "展现了工艺的独特魅力和美感展现了工艺的独特魅力和美感展现了工艺的独特魅力和美感展现了工艺的独特魅力和美感",
+    "description" : "展现了工艺的独特魅力和美感",
     "height" : 182,
     "id" : 11,
     "tags" : [

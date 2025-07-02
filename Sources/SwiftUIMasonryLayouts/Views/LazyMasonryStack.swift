@@ -116,7 +116,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     
     public var body: some View {
         GeometryReader { geometry in
-            ScrollView {
+            ScrollView(configuration.axis == .vertical ? .vertical : .horizontal) {
                 MasonryLayout(
                     axis: configuration.axis,
                     lines: configuration.lines,
@@ -126,7 +126,10 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
                 ) {
                     ForEach(visibleItems, id: \.id) { item in
                         content(item)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .fixedSize(
+                                horizontal: configuration.axis == .horizontal,
+                                vertical: configuration.axis == .vertical
+                            )
                     }
 
 
@@ -135,22 +138,36 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
                     GeometryReader { contentGeometry in
                         Color.clear
                             .onAppear {
-                                contentHeight = contentGeometry.size.height
+                                contentHeight = configuration.axis == .vertical
+                                    ? contentGeometry.size.height
+                                    : contentGeometry.size.width
                             }
-                            .onChange(of: contentGeometry.size.height) { _, newHeight in
-                                contentHeight = newHeight
+                            .onChange(of: contentGeometry.size) { _, newSize in
+                                contentHeight = configuration.axis == .vertical
+                                    ? newSize.height
+                                    : newSize.width
                             }
                     }
                 )
             }
             .onAppear {
-                viewportHeight = geometry.size.height
+                if configuration.axis == .vertical {
+                    viewportHeight = geometry.size.height
+                } else {
+                    viewportHeight = geometry.size.width
+                }
             }
-            .onChange(of: geometry.size.height) { _, newHeight in
-                viewportHeight = newHeight
+            .onChange(of: geometry.size) { _, newSize in
+                if configuration.axis == .vertical {
+                    viewportHeight = newSize.height
+                } else {
+                    viewportHeight = newSize.width
+                }
             }
             .onScrollGeometryChange(for: CGFloat.self) { scrollGeometry in
-                return scrollGeometry.contentOffset.y
+                return configuration.axis == .vertical
+                    ? scrollGeometry.contentOffset.y
+                    : scrollGeometry.contentOffset.x
             } action: { oldValue, newValue in
                 handleScrollChange(newValue)
             }
