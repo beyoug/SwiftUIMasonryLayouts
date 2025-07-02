@@ -950,9 +950,6 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         let contentHeight = totalContentSize.height
         let scrollY = offset.y  // 🎯 修复：不要取负号！向下滚动时offset.y是正数
 
-        // 🎯 调试：打印滚动信息
-        MasonryLogger.debug("📱 滚动调试 - offset.y: \(offset.y), scrollY: \(scrollY), contentHeight: \(contentHeight), viewportHeight: \(viewportHeight)")
-
         // 动态计算边界阈值 - 🎯 优化分页触发阈值
         let topThreshold = min(viewportHeight * 0.1, 100) // 视口高度的10%或100px
         let bottomThreshold = min(viewportHeight * 1.5, 300) // 🎯 调整为1.5倍视口高度或300px，更适合分页

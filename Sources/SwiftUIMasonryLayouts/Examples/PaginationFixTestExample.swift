@@ -11,7 +11,6 @@ struct PaginationFixTestExample: View {
     @StateObject private var dataLoader = TestDataLoader(pageSize: 10)
     @State private var loadCount = 0
     @State private var lastLoadTime = Date()
-    @State private var forceRefresh = false
     
     var body: some View {
         VStack(spacing: 16) {
@@ -47,7 +46,7 @@ struct PaginationFixTestExample: View {
                 }
             }
         }
-        .navigationTitle("分页修复测试")
+        .navigationTitle("垂直轴向分页")
         .onAppear {
             print("🏗️ 视图出现，开始初始化")
             if dataLoader.items.isEmpty {
@@ -83,12 +82,6 @@ struct PaginationFixTestExample: View {
             
             // 手动控制
             HStack {
-                Button("手动加载") {
-                    print("🔘 手动触发加载")
-                    dataLoader.loadNextPage()
-                }
-                .disabled(!dataLoader.hasNextPage || dataLoader.isLoading)
-                
                 Button("重置") {
                     print("🔄 重置数据")
                     dataLoader.loadInitialData()
@@ -96,21 +89,11 @@ struct PaginationFixTestExample: View {
                     lastLoadTime = Date()
                 }
 
-                Button("调试刷新") {
-                    print("🔄 调试：强制刷新UI（会重置滚动位置）")
-                    forceRefresh.toggle()
-                }
-
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("期望: 自动连续加载")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text("刷新ID: \(forceRefresh ? "1" : "0")")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+                Text("期望: 自动连续加载")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
         .padding()
@@ -161,7 +144,7 @@ private extension DateFormatter {
 // MARK: - 预览
 
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-#Preview("分页修复测试") {
+#Preview("垂直轴向分页测试") {
     NavigationView {
         PaginationFixTestExample()
     }
