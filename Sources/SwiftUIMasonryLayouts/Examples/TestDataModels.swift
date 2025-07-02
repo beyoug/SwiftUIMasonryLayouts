@@ -62,17 +62,17 @@ class TestDataLoader: ObservableObject {
     // 🎯 单例模式，防止重复创建
     static let shared = TestDataLoader(pageSize: 10)
 
-    private static var _instances: [ObjectIdentifier: TestDataLoader] = [:]
+    private static var _instances: [Int: TestDataLoader] = [:]
 
     static func getInstance(pageSize: Int = 10) -> TestDataLoader {
-        let key = ObjectIdentifier(TestDataLoader.self)
-        if let existing = _instances[key] {
-            print("🔄 复用现有 TestDataLoader 实例: \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
+        // 使用pageSize作为key，确保不同pageSize有不同的实例
+        if let existing = _instances[pageSize] {
+            print("🔄 复用现有 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
             return existing
         } else {
             let newInstance = TestDataLoader(pageSize: pageSize)
-            _instances[key] = newInstance
-            print("🆕 创建新的 TestDataLoader 实例: \(ObjectIdentifier(newInstance))")
+            _instances[pageSize] = newInstance
+            print("🆕 创建新的 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(newInstance))")
             return newInstance
         }
     }
@@ -115,6 +115,7 @@ class TestDataLoader: ObservableObject {
                 allData = try JSONDecoder().decode([TestDataItem].self, from: data)
                 totalItems = allData.count
                 totalPages = (totalItems + pageSize - 1) / pageSize
+                print("📁 从JSON加载数据成功 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
                 return
             } catch {
                 print("加载JSON文件失败: \(error)")
@@ -149,11 +150,11 @@ class TestDataLoader: ObservableObject {
 
         totalItems = allData.count
         totalPages = (totalItems + pageSize - 1) / pageSize
+        print("🔧 生成示例数据完成 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
     }
     
     /// 加载第一页数据
     func loadInitialData() {
-        print("🔄 loadInitialData 被调用 - 当前项目数: \(items.count)")
         currentPage = 0
         items.removeAll()
         loadPage(0)
@@ -191,7 +192,7 @@ class TestDataLoader: ObservableObject {
             self.hasNextPage = page < self.totalPages - 1
             self.isLoading = false
 
-            print("📊 数据加载完成 - 页面: \(page), 总页数: \(self.totalPages), 当前项目数: \(self.items.count), hasNextPage: \(self.hasNextPage)")
+            print("📊 数据加载完成 - 页面: \(page + 1)/\(self.totalPages), 项目数: \(self.items.count)/\(self.totalItems)")
         }
     }
     

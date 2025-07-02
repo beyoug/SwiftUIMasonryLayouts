@@ -9,7 +9,7 @@ import SwiftUI
 /// 基础瀑布流视图组件
 /// 适用于静态内容和简单布局场景
 @available(iOS 18.0, macOS 15.0, *)
-public struct MasonryView<Content: View>: View {
+public struct MasonryStack<Content: View>: View {
     
     // MARK: - 属性
     

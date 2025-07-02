@@ -12,7 +12,7 @@ import UIKit
 /// 专注于布局性能的懒加载瀑布流视图
 /// 只关注数据绑定、布局计算和渲染优化，不涉及业务逻辑
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Content: View>: View where Data.Element: Identifiable, Data.Element.ID == ID {
+public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Content: View>: View where Data.Element: Identifiable, Data.Element.ID == ID {
     
     // MARK: - 核心属性
     
@@ -285,13 +285,13 @@ public struct LazyMasonryCallbacks<Data: RandomAccessCollection> {
 }
 
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public extension LazyMasonryView {
+public extension LazyMasonryStack {
 
     /// 配置回调（推荐方式，避免多次实例创建）
     /// - Parameter callbacks: 回调配置
     /// - Returns: 配置了回调的视图
-    func callbacks(_ callbacks: LazyMasonryCallbacks<Data>) -> LazyMasonryView {
-        LazyMasonryView(
+    func callbacks(_ callbacks: LazyMasonryCallbacks<Data>) -> LazyMasonryStack {
+        LazyMasonryStack(
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
@@ -304,8 +304,8 @@ public extension LazyMasonryView {
     }
 
     /// 添加可见范围变化监听（用于业务层实现分页等逻辑）
-    func onVisibleRangeChanged(_ action: @escaping (Range<Data.Index>) -> Void) -> LazyMasonryView {
-        LazyMasonryView(
+    func onVisibleRangeChanged(_ action: @escaping (Range<Data.Index>) -> Void) -> LazyMasonryStack {
+        LazyMasonryStack(
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
@@ -318,8 +318,8 @@ public extension LazyMasonryView {
     }
 
     /// 添加滚动到底部监听
-    func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryView {
-        LazyMasonryView(
+    func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack {
+        LazyMasonryStack(
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
@@ -332,8 +332,8 @@ public extension LazyMasonryView {
     }
 
     /// 添加滚动到顶部监听
-    func onReachTop(_ action: @escaping () -> Void) -> LazyMasonryView {
-        LazyMasonryView(
+    func onReachTop(_ action: @escaping () -> Void) -> LazyMasonryStack {
+        LazyMasonryStack(
             data: data,
             configuration: configuration,
             breakpoints: breakpoints,
@@ -346,12 +346,12 @@ public extension LazyMasonryView {
     }
 
     /// 添加滚动到起始位置监听（垂直布局的顶部，水平布局的左边）
-    func onReachStart(_ action: @escaping () -> Void) -> LazyMasonryView {
+    func onReachStart(_ action: @escaping () -> Void) -> LazyMasonryStack {
         onReachTop(action)
     }
 
     /// 添加滚动到结束位置监听（垂直布局的底部，水平布局的右边）
-    func onReachEnd(_ action: @escaping () -> Void) -> LazyMasonryView {
+    func onReachEnd(_ action: @escaping () -> Void) -> LazyMasonryStack {
         onReachBottom(action)
     }
 }
@@ -359,8 +359,8 @@ public extension LazyMasonryView {
 // MARK: - 内部初始化器
 
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-private extension LazyMasonryView {
-    
+private extension LazyMasonryStack {
+
     init(
         data: Data,
         configuration: MasonryConfiguration,

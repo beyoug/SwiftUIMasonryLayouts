@@ -27,8 +27,8 @@ public enum SwiftUIMasonryLayouts {
 
 /// 瀑布流视图的便捷别名
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public typealias Masonry = MasonryView
+public typealias Masonry = MasonryStack
 
 /// 懒加载瀑布流视图的便捷别名（推荐用于大数据集）
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public typealias LazyMasonry = LazyMasonryView
+public typealias LazyMasonry = LazyMasonryStack

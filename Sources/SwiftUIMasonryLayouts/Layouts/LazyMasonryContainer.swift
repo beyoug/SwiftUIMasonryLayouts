@@ -38,6 +38,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     @State private var isIncrementalUpdateAvailable: Bool = false
     @State private var previousScrollOffset: CGPoint = .zero
     @State private var lastBottomTriggerTime: TimeInterval = 0
+    @State private var wasNearBottomBeforeUpdate: Bool = false  // 🎯 记录更新前是否接近底部
     @State private var lastBottomProtectionTime: TimeInterval = 0
     @State private var isLayoutReady: Bool = false
     
@@ -302,6 +303,9 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         }
         itemPositions = newPositions
 
+        // 🎯 在更新总尺寸前检查是否接近底部
+        let wasNearBottom = isNearBottom(scrollOffset: previousScrollOffset)
+
         // 更新总尺寸
         totalContentSize = incrementalResult.totalSize
 
@@ -310,6 +314,11 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             MasonryLogger.warning("增量更新后位置数量不匹配! 位置:\(itemPositions.count), 数据:\(data.count)")
         } else {
             MasonryLogger.debug("增量更新成功，位置信息已同步")
+        }
+
+        // 🎯 如果更新前接近底部，检查是否需要继续加载
+        if wasNearBottom {
+            checkContinuousLoadingAfterUpdate()
         }
 
         // 更新可见范围
@@ -358,6 +367,9 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
         // 在主线程上更新状态并进行验证
         DispatchQueue.main.async {
+            // 🎯 在更新状态前检查是否接近底部
+            let wasNearBottom = self.isNearBottom(scrollOffset: self.previousScrollOffset)
+
             // 更新状态
             self.itemPositions = convertedPositions
             self.totalContentSize = result.totalSize
@@ -386,12 +398,61 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             } else {
                 MasonryLogger.debug("布局计算完成，位置信息已同步 (\(convertedPositions.count)项)")
                 self.isLayoutReady = true // 布局准备完成
+
+                // 🎯 如果更新前接近底部，检查是否需要继续加载
+                if wasNearBottom {
+                    self.checkContinuousLoadingAfterUpdate()
+                } else {
+                    // 🎯 布局完成后主动检查是否需要加载更多（解决初始内容不足一屏的问题）
+                    self.checkInitialLoadingAfterLayout()
+                }
             }
         }
 
         // 初始化可见范围 - 使用更保守的初始计算
         if visibleRange == nil {
             updateInitialVisibleRange()
+        }
+    }
+
+    /// 检查数据更新后是否需要继续加载
+    private func checkContinuousLoadingAfterUpdate() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let currentlyNearBottom = self.isNearBottom(scrollOffset: self.previousScrollOffset)
+
+            if currentlyNearBottom {
+                self.lastBottomTriggerTime = 0
+                self.checkVerticalScrollBoundaries(offset: self.previousScrollOffset)
+            }
+        }
+    }
+
+    /// 🎯 检查初始布局完成后是否需要加载更多（解决内容不足一屏的问题）
+    private func checkInitialLoadingAfterLayout() {
+        // 延迟一小段时间，确保布局完全更新
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let contentHeight = self.totalContentSize.height
+            let viewportHeight = self.geometry.size.height
+
+            // 🎯 修复逻辑：初始加载时，如果用户在顶部且内容不足2倍屏幕高度，就主动加载
+            // 这样可以确保用户有足够的内容可以滚动，从而触发后续的分页
+            guard contentHeight > 0 && viewportHeight > 0 else {
+                MasonryLogger.debug("🚫 初始检查跳过: contentHeight=\(contentHeight), viewportHeight=\(viewportHeight)")
+                return
+            }
+
+            let currentScrollY = -self.previousScrollOffset.y  // 🎯 保持与主检测逻辑一致
+            let isAtTop = currentScrollY <= 50 // 用户基本在顶部（允许50px的误差）
+
+            // 🎯 简化的初始内容检查：只有内容真正不足一屏时才自动加载
+            let contentToViewportRatio = contentHeight / viewportHeight
+            let needsMoreContent = contentToViewportRatio < 1.0  // 内容不足一屏时自动加载
+
+            if isAtTop && needsMoreContent {
+                MasonryLogger.debug("🚀 内容不足一屏，自动加载更多")
+                self.lastBottomTriggerTime = 0
+                self.onReachBottom?()
+            }
         }
     }
 
@@ -655,19 +716,17 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
     /// 智能检测是否接近底部
     private func isNearBottom(scrollOffset: CGPoint) -> Bool {
-        let scrollY = scrollOffset.y
+        let scrollY = scrollOffset.y  // 🎯 修复：与主检测逻辑保持一致
         let contentHeight = totalContentSize.height
         let viewportHeight = geometry.size.height
 
-        // 🎯 防止在布局未完成时错误触发
+        // 防止在布局未完成时错误触发
         guard contentHeight > 0 && viewportHeight > 0 && isLayoutReady else {
-            MasonryLogger.debug("🚫 底部检测跳过: contentHeight=\(contentHeight), viewportHeight=\(viewportHeight), isLayoutReady=\(isLayoutReady)")
             return false
         }
 
-        // 🎯 统一底部检测逻辑，与 checkVerticalScrollBoundaries 保持一致
-        let bottomThreshold = min(viewportHeight * 0.8, 500) // 与主检测逻辑一致
-
+        // 统一底部检测逻辑
+        let bottomThreshold = min(viewportHeight * 1.5, 300)
         return scrollY + viewportHeight >= contentHeight - bottomThreshold
     }
 
@@ -889,38 +948,36 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     private func checkVerticalScrollBoundaries(offset: CGPoint) {
         let viewportHeight = geometry.size.height
         let contentHeight = totalContentSize.height
-        let scrollY = -offset.y
+        let scrollY = offset.y  // 🎯 修复：不要取负号！向下滚动时offset.y是正数
 
-        // 动态计算边界阈值 - 🎯 进一步增加底部检测范围，更容易触发分页
+        // 🎯 调试：打印滚动信息
+        MasonryLogger.debug("📱 滚动调试 - offset.y: \(offset.y), scrollY: \(scrollY), contentHeight: \(contentHeight), viewportHeight: \(viewportHeight)")
+
+        // 动态计算边界阈值 - 🎯 优化分页触发阈值
         let topThreshold = min(viewportHeight * 0.1, 100) // 视口高度的10%或100px
-        let bottomThreshold = min(viewportHeight * 0.8, 500) // 🎯 增加到80%视口高度或500px，更容易触发
+        let bottomThreshold = min(viewportHeight * 1.5, 300) // 🎯 调整为1.5倍视口高度或300px，更适合分页
 
         // 检查是否到达顶部（向上滚动）
         if scrollY <= topThreshold && previousScrollOffset.y > offset.y {
             onReachTop?()
         }
 
-        // 🎯 防止在布局未完成时错误触发底部回调
+        // 防止在布局未完成时错误触发底部回调
         guard contentHeight > 0 && isLayoutReady else {
-            MasonryLogger.debug("🚫 底部回调跳过: contentHeight=\(contentHeight), isLayoutReady=\(isLayoutReady)")
             return
         }
 
-        // 检查是否到达底部（更宽松的检测策略）
+        // 检查是否到达底部
         let isNearBottom = scrollY + viewportHeight >= contentHeight - bottomThreshold
-        let isScrollingDown = previousScrollOffset.y < offset.y
 
         // 防止重复触发
         let currentTime = Date().timeIntervalSince1970
         let timeSinceLastTrigger = currentTime - lastBottomTriggerTime
 
-        // 🎯 优化触发条件：接近底部时就触发，降低防抖时间
-        if isNearBottom && timeSinceLastTrigger > 0.2 { // 🎯 进一步降低到0.2秒
-            MasonryLogger.debug("🎯 触发底部回调: scrollY=\(scrollY), viewportHeight=\(viewportHeight), contentHeight=\(contentHeight), bottomThreshold=\(bottomThreshold)")
+        // 触发底部回调
+        if isNearBottom && timeSinceLastTrigger > 0.2 {
             lastBottomTriggerTime = currentTime
             onReachBottom?()
-        } else if isNearBottom {
-            MasonryLogger.debug("🔍 接近底部但未触发: isNearBottom=\(isNearBottom), isScrollingDown=\(isScrollingDown), timeSinceLastTrigger=\(String(format: "%.2f", timeSinceLastTrigger))")
         }
     }
 

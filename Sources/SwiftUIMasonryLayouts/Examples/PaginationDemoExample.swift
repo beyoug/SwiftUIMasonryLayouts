@@ -30,19 +30,28 @@ struct PaginationDemoContent: View {
     // MARK: - 视图主体
     
     var body: some View {
-        // 最简洁版本：只保留LazyMasonryView核心功能
-        LazyMasonryView(dataLoader.items, configuration: .columns(2)) { item in
+        // 最简洁版本：只保留LazyMasonryStack核心功能
+        LazyMasonryStack(dataLoader.items, configuration: .columns(2)) { item in
             itemView(item)
         }
         .onReachBottom {
             // 保留分页加载功能
             let timestamp = Date().timeIntervalSince1970
-            print("🎯 [\(String(format: "%.2f", timestamp))] 底部回调触发 - hasNextPage: \(dataLoader.hasNextPage), isLoading: \(dataLoader.isLoading), currentPage: \(dataLoader.currentPage), totalPages: \(dataLoader.totalPages), items: \(dataLoader.items.count)")
+            print("🎯 [\(String(format: "%.2f", timestamp))] 底部回调触发")
+            print("   📊 状态: hasNextPage=\(dataLoader.hasNextPage), isLoading=\(dataLoader.isLoading)")
+            print("   📄 页面: \(dataLoader.currentPage + 1)/\(dataLoader.totalPages), 项目数: \(dataLoader.items.count)/\(dataLoader.totalItems)")
+
             if dataLoader.hasNextPage && !dataLoader.isLoading {
                 print("✅ [\(String(format: "%.2f", timestamp))] 开始加载第 \(dataLoader.currentPage + 1) 页...")
                 dataLoader.loadNextPage()
             } else {
-                print("❌ [\(String(format: "%.2f", timestamp))] 跳过加载 - hasNextPage: \(dataLoader.hasNextPage), isLoading: \(dataLoader.isLoading)")
+                print("❌ [\(String(format: "%.2f", timestamp))] 跳过加载")
+                if !dataLoader.hasNextPage {
+                    print("   🏁 原因: 已到达最后一页")
+                }
+                if dataLoader.isLoading {
+                    print("   ⏳ 原因: 正在加载中")
+                }
             }
         }
         .navigationTitle("分页加载演示")
@@ -59,7 +68,7 @@ struct PaginationDemoContent: View {
         }
     }
     
-    // MARK: - 最简洁版本：只保留LazyMasonryView核心功能
+    // MARK: - 最简洁版本：只保留LazyMasonryStack核心功能
     
     private func itemView(_ item: TestDataItem) -> some View {
         // 简化版本：与SimpleMasonryTest类似的简洁样式

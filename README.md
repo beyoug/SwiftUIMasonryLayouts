@@ -51,6 +51,15 @@ import SwiftUI
 import SwiftUIMasonryLayouts
 ```
 
+### 📝 命名约定
+
+采用符合 SwiftUI 命名习惯的 Stack 风格命名：
+
+- **主要组件**：`MasonryStack` 和 `LazyMasonryStack`
+- **便捷别名**：`Masonry` 和 `LazyMasonry`
+
+推荐使用 `MasonryStack` 和 `LazyMasonryStack` 获得最佳的代码可读性。
+
 ### 1. 普通瀑布流创建
 
 适用于静态内容和简单布局场景：
@@ -61,7 +70,7 @@ struct BasicMasonryExample: View {
 
     var body: some View {
         ScrollView {
-            MasonryView(
+            MasonryStack(
                 axis: .vertical,
                 lines: .fixed(2),
                 hSpacing: 8,
@@ -89,7 +98,7 @@ struct LazyMasonryExample: View {
     @State private var photos = PhotoItem.sampleData
 
     var body: some View {
-        LazyMasonryView(
+        LazyMasonryStack(
             photos,
             configuration: .columns(2)
         ) { photo in
