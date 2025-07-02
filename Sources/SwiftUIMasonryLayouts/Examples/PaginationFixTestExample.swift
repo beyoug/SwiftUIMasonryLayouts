@@ -45,6 +45,7 @@ struct PaginationFixTestExample: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity) // 🎯 关键：强制占用所有可用空间
         }
         .navigationTitle("垂直轴向分页")
         .onAppear {
@@ -89,12 +90,6 @@ struct PaginationFixTestExample: View {
                     lastLoadTime = Date()
                 }
 
-                Button("清除缓存") {
-                    print("🗑️ 清除布局缓存")
-                    // 这会触发布局重新计算
-                    dataLoader.objectWillChange.send()
-                }
-
                 Spacer()
 
                 Text("期望: 自动连续加载")
@@ -109,63 +104,55 @@ struct PaginationFixTestExample: View {
     }
     
     private func itemView(_ item: TestDataItem) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 头部区域
+        VStack(alignment: .leading, spacing: 8) {
+            // 头部信息
             HStack {
                 Text("#\(item.id)")
                     .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.3))
-                    .clipShape(Capsule())
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(4)
 
                 Spacer()
 
                 Text(item.category)
                     .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(item.swiftUIColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.9))
-                    .clipShape(Capsule())
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Color.white.opacity(0.3))
+                    .cornerRadius(3)
             }
 
             // 标题
             Text(item.title)
                 .font(.headline)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
+                .fontWeight(.semibold)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
 
             // 描述
             Text(item.description)
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.9))
+                .font(.caption)
+                .lineLimit(3)
                 .multilineTextAlignment(.leading)
+                .opacity(0.9)
 
             // 标签
             if !item.tags.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(item.tags.prefix(3), id: \.self) { tag in
+                LazyVGrid(columns: [
+                    GridItem(.adaptive(minimum: 50), spacing: 4)
+                ], spacing: 4) {
+                    ForEach(item.tags, id: \.self) { tag in
                         Text(tag)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(item.swiftUIColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
+                            .font(.caption2)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
                             .background(Color.white.opacity(0.2))
-                            .clipShape(Capsule())
+                            .cornerRadius(3)
+                            .lineLimit(1)
                     }
-                    if item.tags.count > 3 {
-                        Text("+\(item.tags.count - 3)")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    Spacer()
                 }
             }
 
@@ -173,25 +160,21 @@ struct PaginationFixTestExample: View {
             HStack {
                 Text("页面 \((item.id - 1) / 10 + 1)")
                     .font(.caption2)
-                    .foregroundColor(.white.opacity(0.7))
+                    .opacity(0.7)
 
                 Spacer()
 
-                Text("H: \(item.height)")
+                Text("高度: \(item.height)")
                     .font(.caption2)
-                    .foregroundColor(.white.opacity(0.7))
+                    .opacity(0.7)
             }
         }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [item.swiftUIColor, item.swiftUIColor.opacity(0.8)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .padding(12)
+        .frame(height: item.cgHeight)
+        .background(item.swiftUIColor.gradient)
+        .foregroundColor(.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
     
     private func timeAgo(_ date: Date) -> String {

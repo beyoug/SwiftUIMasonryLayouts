@@ -310,13 +310,85 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         if let calculator = sizeCalculator {
             return calculator(item, lineSize)
         }
-        
-        // 默认尺寸
-        if configuration.axis == .vertical {
-            return CGSize(width: lineSize, height: 150)
-        } else {
-            return CGSize(width: 150, height: lineSize)
+
+        // 🎯 使用智能默认尺寸计算（与MasonryLayoutEngine保持一致）
+        return calculateIntelligentDefaultSize(item: item, lineSize: lineSize)
+    }
+
+    /// 智能默认尺寸计算
+    /// 1. 尝试从数据模型中提取尺寸属性
+    /// 2. 使用基于ID的一致性随机尺寸
+    private func calculateIntelligentDefaultSize(item: Data.Element, lineSize: CGFloat) -> CGSize {
+        // 尝试通过反射获取项目的尺寸属性
+        if let sizeFromReflection = extractSizeFromItem(item, lineSize: lineSize) {
+            return sizeFromReflection
         }
+
+        // 基础尺寸范围
+        let minHeight: CGFloat = 120
+        let minWidth: CGFloat = 120
+
+        // 使用项目ID的哈希值来生成伪随机但一致的尺寸
+        let hashValue = abs(item.id.hashValue)
+
+        if configuration.axis == .vertical {
+            // 垂直布局：固定宽度，变化高度
+            let heightVariation = CGFloat(hashValue % 180) + minHeight // 120-300范围
+            return CGSize(width: lineSize, height: heightVariation)
+        } else {
+            // 水平布局：固定高度，变化宽度
+            let widthVariation = CGFloat(hashValue % 180) + minWidth // 120-300范围
+            return CGSize(width: widthVariation, height: lineSize)
+        }
+    }
+
+    /// 通过反射尝试从项目中提取尺寸信息
+    private func extractSizeFromItem(_ item: Data.Element, lineSize: CGFloat) -> CGSize? {
+        let mirror = Mirror(reflecting: item)
+
+        var width: CGFloat?
+        var height: CGFloat?
+
+        // 查找常见的尺寸属性
+        for child in mirror.children {
+            guard let label = child.label else { continue }
+
+            switch label.lowercased() {
+            case "width":
+                if let value = child.value as? CGFloat {
+                    width = value
+                } else if let value = child.value as? Double {
+                    width = CGFloat(value)
+                } else if let value = child.value as? Int {
+                    width = CGFloat(value)
+                }
+            case "height":
+                if let value = child.value as? CGFloat {
+                    height = value
+                } else if let value = child.value as? Double {
+                    height = CGFloat(value)
+                } else if let value = child.value as? Int {
+                    height = CGFloat(value)
+                }
+            default:
+                break
+            }
+        }
+
+        // 根据配置轴向返回合适的尺寸
+        if configuration.axis == .vertical {
+            // 垂直布局：使用lineSize作为宽度，height属性作为高度
+            if let h = height, h > 0 {
+                return CGSize(width: lineSize, height: h)
+            }
+        } else {
+            // 水平布局：使用width属性作为宽度，lineSize作为高度
+            if let w = width, w > 0 {
+                return CGSize(width: w, height: lineSize)
+            }
+        }
+
+        return nil
     }
     
     /// 应用布局结果
