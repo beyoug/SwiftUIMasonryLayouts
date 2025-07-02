@@ -40,7 +40,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
     @State private var currentConfiguration: MasonryConfiguration?
     @State private var visibleRange: Range<Data.Index>?
-    @State private var layoutCache: LazyLayoutCache = LazyLayoutCache()
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollOffset: CGPoint = .zero
     @State private var lastValidSize: CGSize = .zero // 跟踪最后一个有效尺寸
@@ -130,7 +129,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
                         geometry: geometry,
                         overrideContainerSize: effectiveSize.width > 50 ? effectiveSize : nil,
                         visibleRange: $visibleRange,
-                        layoutCache: $layoutCache,
                         sizeCalculator: sizeCalculator,
                         content: content,
                         externalScrollOffset: scrollOffset, // 传递滚动偏移
@@ -142,13 +140,10 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
                     // .id(layoutTrigger) // 这会导致整个容器重新创建
                 }
                 .onChange(of: effectiveSize) { oldSize, newSize in
-                    // 当有效尺寸发生变化时，更新lastValidSize并清除缓存
+                    // 当有效尺寸发生变化时，更新lastValidSize
                     if newSize.width > 50 && newSize.height > 0 &&
                        abs(newSize.width - lastValidSize.width) > 1.0 {
                         lastValidSize = newSize
-                        layoutCache.invalidate() // 清除所有缓存，强制重新计算
-                        // 🎯 移除强制重新创建视图的机制，只清除缓存即可
-                        // layoutTrigger += 1 // 这会导致整个视图重新创建，丢失状态
                     }
                 }
                 .onScrollGeometryChange(for: CGPoint.self) { geometry in
@@ -166,12 +161,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
                         updateConfiguration(for: geometry.size.width, breakpoints: breakpoints)
                     }
                 }
-#if canImport(UIKit)
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-                    // 内存警告时的智能清理策略
-                    handleMemoryPressure()
-                }
-#endif
+
             }
         }
     }
@@ -222,7 +212,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         if configChanged {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentConfiguration = newConfig
-                layoutCache.invalidate()
             }
         } else if currentConfiguration?.hSpacing != newConfig.hSpacing ||
                   currentConfiguration?.vSpacing != newConfig.vSpacing {
@@ -230,23 +219,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         }
     }
 
-    /// 处理内存压力
-    private func handleMemoryPressure() {
-        // 1. 清理布局缓存
-        layoutCache.invalidate()
 
-        // 2. 如果数据量很大，考虑减少预加载缓冲区
-        if data.count > 1000 {
-            // 通过重新计算可见范围来减少内存使用
-            // 这会触发 LazyMasonryContainer 重新计算可见项目
-        }
-
-        // 3. 强制垃圾回收（在内存紧张时）
-        #if DEBUG
-        let percentage = Double(data.count) / 1000.0 * 100
-        MasonryLogger.info("内存警告 - 已清理缓存，数据量: \(data.count)/1000 (\(String(format: "%.1f", percentage))%)")
-        #endif
-    }
 }
 
 // MARK: - 可扩展接口

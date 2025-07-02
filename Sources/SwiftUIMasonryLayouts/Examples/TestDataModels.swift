@@ -135,7 +135,7 @@ class TestDataLoader: ObservableObject {
             let category = categories[id % categories.count]
             let color = colors[id % colors.count]
             let seed = abs(id.hashValue)
-            let height = 80 + (seed % 171)
+            let height = 100 + (seed % 171)
 
             return TestDataItem(
                 id: id,

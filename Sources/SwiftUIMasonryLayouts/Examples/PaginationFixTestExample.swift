@@ -89,6 +89,12 @@ struct PaginationFixTestExample: View {
                     lastLoadTime = Date()
                 }
 
+                Button("清除缓存") {
+                    print("🗑️ 清除布局缓存")
+                    // 这会触发布局重新计算
+                    dataLoader.objectWillChange.send()
+                }
+
                 Spacer()
 
                 Text("期望: 自动连续加载")
@@ -103,22 +109,89 @@ struct PaginationFixTestExample: View {
     }
     
     private func itemView(_ item: TestDataItem) -> some View {
-        Rectangle()
-            .fill(item.swiftUIColor.gradient)
-            .frame(height: item.cgHeight)
-            .overlay(
-                VStack(spacing: 2) {
-                    Text("#\(item.id)")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    
-                    Text("页面 \((item.id - 1) / 10 + 1)")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.8))
+        VStack(alignment: .leading, spacing: 12) {
+            // 头部区域
+            HStack {
+                Text("#\(item.id)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.3))
+                    .clipShape(Capsule())
+
+                Spacer()
+
+                Text(item.category)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(item.swiftUIColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.9))
+                    .clipShape(Capsule())
+            }
+
+            // 标题
+            Text(item.title)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+
+            // 描述
+            Text(item.description)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.9))
+                .multilineTextAlignment(.leading)
+
+            // 标签
+            if !item.tags.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(item.tags.prefix(3), id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(item.swiftUIColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.2))
+                            .clipShape(Capsule())
+                    }
+                    if item.tags.count > 3 {
+                        Text("+\(item.tags.count - 3)")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    Spacer()
                 }
+            }
+
+            // 底部信息
+            HStack {
+                Text("页面 \((item.id - 1) / 10 + 1)")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.7))
+
+                Spacer()
+
+                Text("H: \(item.height)")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [item.swiftUIColor, item.swiftUIColor.opacity(0.8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .cornerRadius(8)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     
     private func timeAgo(_ date: Date) -> String {

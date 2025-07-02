@@ -18,7 +18,6 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     let geometry: GeometryProxy
     let overrideContainerSize: CGSize? // 新增：覆盖容器尺寸
     @Binding var visibleRange: Range<Data.Index>?
-    @Binding var layoutCache: LazyLayoutCache
     let sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
     let content: (Data.Element) -> Content
     let externalScrollOffset: CGPoint? // 新增：外部滚动偏移
@@ -148,9 +147,8 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
             // 检查是否为数据重置（数量大幅减少或ID不连续）
             if isDataReset(newDataCount: currentDataCount) {
-                // 数据重置时，强制完整重新计算并清理缓存
+                // 数据重置时，强制完整重新计算
                 MasonryLogger.info("检测到数据重置，执行完整重新计算")
-                layoutCache.invalidate()
                 itemPositions.removeAll()
                 isIncrementalUpdateAvailable = false
                 isLayoutReady = false // 重置布局状态
@@ -244,34 +242,14 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
     /// 执行完整布局计算
     private func performFullLayoutCalculation(containerSize: CGSize) {
-        // 生成缓存键
-        let cacheKey = CacheManager.generateLazyCacheKey(
-            configuration: configuration,
-            containerSize: containerSize,
-            itemCount: data.count
-        )
-
-        // 检查缓存
-        if let cachedResult = layoutCache.getCachedLayoutResult(for: cacheKey) {
-            applyLayoutResult(cachedResult)
-            return
-        }
 
         // 使用布局引擎计算
         let result = MasonryLayoutEngine.calculateLazyLayout(
             containerSize: containerSize,
             items: data,
             configuration: configuration,
-            sizeCalculator: sizeCalculator,
-            cache: &layoutCache
+            sizeCalculator: sizeCalculator
         )
-
-        // 🎯 只缓存有效的布局结果，避免零尺寸结果污染缓存
-        if containerSize.width > 0 && containerSize.height > 0 && !result.itemPositions.isEmpty {
-            layoutCache.cacheLayoutResult(for: cacheKey, result: result)
-        } else {
-            MasonryLogger.warning("跳过缓存无效布局结果: containerSize=\(containerSize), positions=\(result.itemPositions.count)")
-        }
 
         // 应用结果
         applyLayoutResult(result)
@@ -287,8 +265,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             containerSize: overrideContainerSize ?? geometry.size,
             items: data,
             configuration: configuration,
-            sizeCalculator: sizeCalculator,
-            cache: &layoutCache
+            sizeCalculator: sizeCalculator
         )
     }
 
@@ -329,11 +306,6 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
 
     /// 计算项目尺寸
     private func calculateItemSize(item: Data.Element, lineSize: CGFloat) -> CGSize {
-        // 首先检查缓存
-        if let cachedSize = layoutCache.getCachedItemSize(for: item.id) {
-            return cachedSize
-        }
-        
         // 使用自定义计算器
         if let calculator = sizeCalculator {
             return calculator(item, lineSize)
@@ -460,8 +432,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     private func forceRecalculateLayout() {
         MasonryLogger.info("强制重新计算布局")
 
-        // 清理所有缓存和状态
-        layoutCache.invalidate()
+        // 清理状态
         itemPositions.removeAll()
         isIncrementalUpdateAvailable = false
 
@@ -634,10 +605,9 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         let expandedStart = min(currentStart, newStart)
         let expandedEnd = max(currentEnd, newEnd)
 
-        // 限制最大范围，避免内存问题
-        let maxRangeSize = min(data.count, 40) // 最多显示40个项目
+        // 计算最终范围
         let finalStart = max(0, expandedStart)
-        let finalEnd = min(data.count, max(expandedEnd, finalStart + maxRangeSize))
+        let finalEnd = min(data.count, expandedEnd)
 
         // 创建最终范围
         let startIndex = data.index(data.startIndex, offsetBy: finalStart)
@@ -841,8 +811,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     private func forceSyncDataAndPositions() {
         MasonryLogger.info("强制同步数据和位置信息")
 
-        // 清除所有缓存
-        layoutCache.invalidate()
+        // 清除状态
         isIncrementalUpdateAvailable = false
 
         // 重新计算完整布局

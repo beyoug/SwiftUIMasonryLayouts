@@ -90,8 +90,7 @@ internal struct MasonryLayoutEngine {
         containerSize: CGSize,
         items: Data,
         configuration: MasonryConfiguration,
-        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?,
-        cache: inout LazyLayoutCache
+        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
     ) -> LazyLayoutResult where Data.Element: Identifiable, Data.Element.ID == ID {
 
         // 🎯 布局引擎层面的零尺寸保护
@@ -127,8 +126,7 @@ internal struct MasonryLayoutEngine {
                 item: item,
                 lineSize: lineSize,
                 configuration: configuration,
-                sizeCalculator: sizeCalculator,
-                cache: &cache
+                sizeCalculator: sizeCalculator
             )
             
             let lineIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: index)
@@ -145,8 +143,6 @@ internal struct MasonryLayoutEngine {
             
             itemFrames.append(frame)
             positions[AnyHashable(item.id)] = frame
-
-            cache.cacheItemSize(for: item.id, size: itemSize)
             updateLineOffset(
                 &lineOffsets,
                 lineIndex: lineIndex,
@@ -224,14 +220,8 @@ internal struct MasonryLayoutEngine {
         item: Item,
         lineSize: CGFloat,
         configuration: MasonryConfiguration,
-        sizeCalculator: ((Item, CGFloat) -> CGSize)?,
-        cache: inout LazyLayoutCache
+        sizeCalculator: ((Item, CGFloat) -> CGSize)?
     ) -> CGSize {
-
-        // 首先检查缓存
-        if let cachedSize = cache.getCachedItemSize(for: item.id) {
-            return cachedSize
-        }
 
         // 使用自定义计算器
         if let calculator = sizeCalculator {
