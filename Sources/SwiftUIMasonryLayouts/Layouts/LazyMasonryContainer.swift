@@ -316,13 +316,14 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     }
 
     /// 智能默认尺寸计算
-    /// 1. 尝试从数据模型中提取尺寸属性
-    /// 2. 使用基于ID的一致性随机尺寸
+    /// 1. 优先使用内容自适应（不依赖数据模型的固定尺寸）
+    /// 2. 使用基于ID的一致性随机尺寸作为后备
     private func calculateIntelligentDefaultSize(item: Data.Element, lineSize: CGFloat) -> CGSize {
-        // 尝试通过反射获取项目的尺寸属性
-        if let sizeFromReflection = extractSizeFromItem(item, lineSize: lineSize) {
-            return sizeFromReflection
-        }
+        // 🎯 注释掉反射提取，优先使用内容自适应
+        // 这样可以让视图根据实际内容计算高度，而不是使用数据模型中的固定值
+        // if let sizeFromReflection = extractSizeFromItem(item, lineSize: lineSize) {
+        //     return sizeFromReflection
+        // }
 
         // 基础尺寸范围
         let minHeight: CGFloat = 120

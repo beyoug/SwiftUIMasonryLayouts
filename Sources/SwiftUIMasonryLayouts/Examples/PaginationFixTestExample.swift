@@ -19,7 +19,7 @@ struct PaginationFixTestExample: View {
             
             Divider()
             
-            // 瀑布流内容
+            // 瀑布流内容 - 使用系统默认算法（最稳定）
             LazyMasonryStack(dataLoader.items, configuration: .columns(2)) { item in
                 itemView(item)
             }
@@ -45,7 +45,6 @@ struct PaginationFixTestExample: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity) // 🎯 关键：强制占用所有可用空间
         }
         .navigationTitle("垂直轴向分页")
         .onAppear {
@@ -55,7 +54,9 @@ struct PaginationFixTestExample: View {
             }
         }
     }
-    
+
+
+
     private var statusPanel: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("分页状态")

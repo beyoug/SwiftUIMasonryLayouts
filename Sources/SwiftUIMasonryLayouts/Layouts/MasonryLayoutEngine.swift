@@ -238,16 +238,18 @@ internal struct MasonryLayoutEngine {
 
     /// 智能默认尺寸计算
     /// 根据项目的属性智能推断合适的尺寸，避免所有项目使用相同尺寸
+    /// 🎯 优先支持内容自适应，不依赖数据模型的固定尺寸
     private static func calculateIntelligentDefaultSize<Item: Identifiable>(
         item: Item,
         lineSize: CGFloat,
         configuration: MasonryConfiguration
     ) -> CGSize {
 
-        // 尝试通过反射获取项目的尺寸属性
-        if let sizeFromReflection = extractSizeFromItem(item, lineSize: lineSize, configuration: configuration) {
-            return sizeFromReflection
-        }
+        // 🎯 注释掉反射提取，优先使用内容自适应
+        // 这样可以让视图根据实际内容计算高度，而不是使用数据模型中的固定值
+        // if let sizeFromReflection = extractSizeFromItem(item, lineSize: lineSize, configuration: configuration) {
+        //     return sizeFromReflection
+        // }
 
         // 基础尺寸范围
         let minHeight: CGFloat = 120

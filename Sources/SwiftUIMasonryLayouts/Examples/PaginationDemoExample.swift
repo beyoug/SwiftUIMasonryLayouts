@@ -30,50 +30,41 @@ struct PaginationDemoContent: View {
     // MARK: - 视图主体
     
     var body: some View {
-        HStack{
-            VStack{
-                Text("测试")
-                
-                Text("测试")
-            }
-            .frame(width: 100)
-            
-            // 最简洁版本：只保留LazyMasonryStack核心功能
-            LazyMasonryStack(dataLoader.items, configuration: .columns(2)) { item in
-                itemView(item)
-            }
-            .onReachBottom {
-                // 保留分页加载功能
-                let timestamp = Date().timeIntervalSince1970
-                print("🎯 [\(String(format: "%.2f", timestamp))] 底部回调触发")
-                print("   📊 状态: hasNextPage=\(dataLoader.hasNextPage), isLoading=\(dataLoader.isLoading)")
-                print("   📄 页面: \(dataLoader.currentPage + 1)/\(dataLoader.totalPages), 项目数: \(dataLoader.items.count)/\(dataLoader.totalItems)")
+        // 最简洁版本：只保留LazyMasonryStack核心功能
+        LazyMasonryStack(dataLoader.items, configuration: .columns(2)) { item in
+            itemView(item)
+        }
+        .onReachBottom {
+            // 保留分页加载功能
+            let timestamp = Date().timeIntervalSince1970
+            print("🎯 [\(String(format: "%.2f", timestamp))] 底部回调触发")
+            print("   📊 状态: hasNextPage=\(dataLoader.hasNextPage), isLoading=\(dataLoader.isLoading)")
+            print("   📄 页面: \(dataLoader.currentPage + 1)/\(dataLoader.totalPages), 项目数: \(dataLoader.items.count)/\(dataLoader.totalItems)")
 
-                if dataLoader.hasNextPage && !dataLoader.isLoading {
-                    print("✅ [\(String(format: "%.2f", timestamp))] 开始加载第 \(dataLoader.currentPage + 1) 页...")
-                    dataLoader.loadNextPage()
-                } else {
-                    print("❌ [\(String(format: "%.2f", timestamp))] 跳过加载")
-                    if !dataLoader.hasNextPage {
-                        print("   🏁 原因: 已到达最后一页")
-                    }
-                    if dataLoader.isLoading {
-                        print("   ⏳ 原因: 正在加载中")
-                    }
+            if dataLoader.hasNextPage && !dataLoader.isLoading {
+                print("✅ [\(String(format: "%.2f", timestamp))] 开始加载第 \(dataLoader.currentPage + 1) 页...")
+                dataLoader.loadNextPage()
+            } else {
+                print("❌ [\(String(format: "%.2f", timestamp))] 跳过加载")
+                if !dataLoader.hasNextPage {
+                    print("   🏁 原因: 已到达最后一页")
+                }
+                if dataLoader.isLoading {
+                    print("   ⏳ 原因: 正在加载中")
                 }
             }
-            .navigationTitle("分页加载演示")
-            .onAppear {
-                print("🏗️ PaginationDemoContent 出现 - dataLoader实例: \(ObjectIdentifier(dataLoader)), hasInitialized: \(hasInitialized), items: \(dataLoader.items.count)")
-                // 🎯 使用单例后，只在数据为空时初始化（不依赖 hasInitialized）
-                if dataLoader.items.isEmpty {
-                    print("🚀 数据为空，开始初始化数据加载")
-                    dataLoader.loadInitialData()
-                } else {
-                    print("🔄 视图重新出现 - 数据已存在，跳过初始化，items: \(dataLoader.items.count)")
-                }
-                hasInitialized = true
+        }
+        .navigationTitle("分页加载演示")
+        .onAppear {
+            print("🏗️ PaginationDemoContent 出现 - dataLoader实例: \(ObjectIdentifier(dataLoader)), hasInitialized: \(hasInitialized), items: \(dataLoader.items.count)")
+            // 🎯 使用单例后，只在数据为空时初始化（不依赖 hasInitialized）
+            if dataLoader.items.isEmpty {
+                print("🚀 数据为空，开始初始化数据加载")
+                dataLoader.loadInitialData()
+            } else {
+                print("🔄 视图重新出现 - 数据已存在，跳过初始化，items: \(dataLoader.items.count)")
             }
+            hasInitialized = true
         }
     }
     
