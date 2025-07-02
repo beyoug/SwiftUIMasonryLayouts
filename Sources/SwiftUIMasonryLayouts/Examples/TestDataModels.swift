@@ -58,6 +58,30 @@ struct PaginatedResponse<T: Codable>: Codable {
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 @MainActor
 class TestDataLoader: ObservableObject {
+
+    // 🎯 单例模式，防止重复创建
+    static let shared = TestDataLoader(pageSize: 10)
+
+    private static var _instances: [ObjectIdentifier: TestDataLoader] = [:]
+
+    static func getInstance(pageSize: Int = 10) -> TestDataLoader {
+        let key = ObjectIdentifier(TestDataLoader.self)
+        if let existing = _instances[key] {
+            print("🔄 复用现有 TestDataLoader 实例: \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
+            return existing
+        } else {
+            let newInstance = TestDataLoader(pageSize: pageSize)
+            _instances[key] = newInstance
+            print("🆕 创建新的 TestDataLoader 实例: \(ObjectIdentifier(newInstance))")
+            return newInstance
+        }
+    }
+
+    /// 重置所有实例（用于调试）
+    static func resetAllInstances() {
+        print("🗑️ 重置所有 TestDataLoader 实例")
+        _instances.removeAll()
+    }
     
     // MARK: - 属性
     
@@ -76,6 +100,7 @@ class TestDataLoader: ObservableObject {
     
     init(pageSize: Int = 20) {
         self.pageSize = pageSize
+        print("🏗️ TestDataLoader 初始化 - pageSize: \(pageSize), 实例ID: \(ObjectIdentifier(self))")
         loadAllData()
     }
     
@@ -128,6 +153,7 @@ class TestDataLoader: ObservableObject {
     
     /// 加载第一页数据
     func loadInitialData() {
+        print("🔄 loadInitialData 被调用 - 当前项目数: \(items.count)")
         currentPage = 0
         items.removeAll()
         loadPage(0)
@@ -164,6 +190,8 @@ class TestDataLoader: ObservableObject {
             self.currentPage = page
             self.hasNextPage = page < self.totalPages - 1
             self.isLoading = false
+
+            print("📊 数据加载完成 - 页面: \(page), 总页数: \(self.totalPages), 当前项目数: \(self.items.count), hasNextPage: \(self.hasNextPage)")
         }
     }
     

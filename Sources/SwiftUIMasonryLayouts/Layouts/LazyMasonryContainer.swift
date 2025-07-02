@@ -16,6 +16,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     let data: Data
     let configuration: MasonryConfiguration
     let geometry: GeometryProxy
+    let overrideContainerSize: CGSize? // 新增：覆盖容器尺寸
     @Binding var visibleRange: Range<Data.Index>?
     @Binding var layoutCache: LazyLayoutCache
     let sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
@@ -46,9 +47,14 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         ZStack(alignment: .topLeading) {
             Rectangle()
                 .fill(Color.clear)
-                .frame(width: totalContentSize.width, height: totalContentSize.height)
+                .frame(
+                    width: totalContentSize.width,
+                    height: totalContentSize.height
+                )
                 .onAppear {
-                    MasonryLogger.info("容器尺寸: \(totalContentSize)")
+                    MasonryLogger.info("🏗️ 容器尺寸: \(totalContentSize)")
+                    MasonryLogger.info("🏗️ 几何尺寸: \(geometry.size)")
+                    MasonryLogger.info("🏗️ 可见项目数: \(visibleItems.count)")
                 }
 
             if isLayoutReady {
@@ -56,7 +62,10 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
                     if let frame = itemPositions[item.id] {
                         content(item)
                             .frame(width: frame.width, height: frame.height)
-                            .offset(x: frame.minX, y: frame.minY)
+                            .offset(
+                                x: frame.minX,
+                                y: frame.minY
+                            )
                     } else {
                         // 调试：检查哪些项目缺少位置信息
                         Text("缺少位置: \(item.id)")
@@ -116,9 +125,16 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     
     /// 智能布局计算（支持增量更新）
     private func calculateLayout() {
-        let containerSize = geometry.size
+        let containerSize = overrideContainerSize ?? geometry.size
+        MasonryLogger.debug("🏗️ 容器尺寸: \(containerSize)")
+
+        // 🎯 零尺寸容错机制：延迟重试而不是直接跳过
         guard containerSize.width > 0 else {
-            MasonryLogger.warning("Container: LazyMasonryContainer 容器宽度无效: \(containerSize.width)")
+            MasonryLogger.warning("Container: LazyMasonryContainer 容器宽度无效: \(containerSize.width)，延迟重试")
+            // 延迟重试，避免SwiftUI布局过程中的瞬间零尺寸问题
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                self.calculateLayout()
+            }
             return
         }
 
@@ -249,8 +265,12 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             cache: &layoutCache
         )
 
-        // 缓存结果
-        layoutCache.cacheLayoutResult(for: cacheKey, result: result)
+        // 🎯 只缓存有效的布局结果，避免零尺寸结果污染缓存
+        if containerSize.width > 0 && containerSize.height > 0 && !result.itemPositions.isEmpty {
+            layoutCache.cacheLayoutResult(for: cacheKey, result: result)
+        } else {
+            MasonryLogger.warning("跳过缓存无效布局结果: containerSize=\(containerSize), positions=\(result.itemPositions.count)")
+        }
 
         // 应用结果
         applyLayoutResult(result)
@@ -263,7 +283,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         MasonryLogger.debug("执行增量布局计算，新增\(newItems.count)个项目")
 
         return MasonryLayoutEngine.calculateLazyLayout(
-            containerSize: geometry.size,
+            containerSize: overrideContainerSize ?? geometry.size,
             items: data,
             configuration: configuration,
             sizeCalculator: sizeCalculator,
@@ -320,6 +340,12 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
     
     /// 应用布局结果
     private func applyLayoutResult(_ result: LazyLayoutResult) {
+        // 🎯 如果布局结果为空且当前有数据，则跳过应用，保持现有状态
+        if result.itemPositions.isEmpty && !data.isEmpty {
+            MasonryLogger.warning("跳过应用空布局结果，保持现有位置信息")
+            return
+        }
+
         // 转换位置字典，只保留当前数据中存在的项目
         let currentDataIds = Set(data.map { $0.id })
         var convertedPositions: [Data.Element.ID: CGRect] = [:]
@@ -379,7 +405,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         isIncrementalUpdateAvailable = false
 
         // 重新计算
-        performFullLayoutCalculation(containerSize: geometry.size)
+        performFullLayoutCalculation(containerSize: overrideContainerSize ?? geometry.size)
 
         // 重置状态
         lastDataCount = data.count
@@ -633,11 +659,16 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         let contentHeight = totalContentSize.height
         let viewportHeight = geometry.size.height
 
-        // 动态计算底部阈值：使用半个视口高度作为缓冲区
-        let dynamicBuffer = viewportHeight * 0.5
-        let bottomThreshold = contentHeight - viewportHeight - dynamicBuffer
+        // 🎯 防止在布局未完成时错误触发
+        guard contentHeight > 0 && viewportHeight > 0 && isLayoutReady else {
+            MasonryLogger.debug("🚫 底部检测跳过: contentHeight=\(contentHeight), viewportHeight=\(viewportHeight), isLayoutReady=\(isLayoutReady)")
+            return false
+        }
 
-        return scrollY >= bottomThreshold
+        // 🎯 统一底部检测逻辑，与 checkVerticalScrollBoundaries 保持一致
+        let bottomThreshold = min(viewportHeight * 0.8, 500) // 与主检测逻辑一致
+
+        return scrollY + viewportHeight >= contentHeight - bottomThreshold
     }
 
     /// 用于底部保护的更严格的检测（减少误触发）
@@ -645,6 +676,11 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         let scrollY = scrollOffset.y
         let contentHeight = totalContentSize.height
         let viewportHeight = geometry.size.height
+
+        // 🎯 防止在布局未完成时错误触发
+        guard contentHeight > 0 && viewportHeight > 0 && isLayoutReady else {
+            return false
+        }
 
         // 使用更小的缓冲区，只在真正接近底部时才保护
         let protectionBuffer = viewportHeight * 0.2 // 20%视口高度
@@ -751,7 +787,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         isIncrementalUpdateAvailable = false
 
         // 重新计算完整布局
-        performFullLayoutCalculation(containerSize: geometry.size)
+        performFullLayoutCalculation(containerSize: overrideContainerSize ?? geometry.size)
     }
 
     /// 优化的可见项目查找（避免O(n)遍历）
@@ -855,13 +891,19 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         let contentHeight = totalContentSize.height
         let scrollY = -offset.y
 
-        // 动态计算边界阈值
+        // 动态计算边界阈值 - 🎯 进一步增加底部检测范围，更容易触发分页
         let topThreshold = min(viewportHeight * 0.1, 100) // 视口高度的10%或100px
-        let bottomThreshold = min(viewportHeight * 0.2, 200) // 视口高度的20%或200px
+        let bottomThreshold = min(viewportHeight * 0.8, 500) // 🎯 增加到80%视口高度或500px，更容易触发
 
         // 检查是否到达顶部（向上滚动）
         if scrollY <= topThreshold && previousScrollOffset.y > offset.y {
             onReachTop?()
+        }
+
+        // 🎯 防止在布局未完成时错误触发底部回调
+        guard contentHeight > 0 && isLayoutReady else {
+            MasonryLogger.debug("🚫 底部回调跳过: contentHeight=\(contentHeight), isLayoutReady=\(isLayoutReady)")
+            return
         }
 
         // 检查是否到达底部（更宽松的检测策略）
@@ -872,12 +914,13 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
         let currentTime = Date().timeIntervalSince1970
         let timeSinceLastTrigger = currentTime - lastBottomTriggerTime
 
-        if isNearBottom && timeSinceLastTrigger > 1.0 { // 1秒防抖
+        // 🎯 优化触发条件：接近底部时就触发，降低防抖时间
+        if isNearBottom && timeSinceLastTrigger > 0.2 { // 🎯 进一步降低到0.2秒
             MasonryLogger.debug("🎯 触发底部回调: scrollY=\(scrollY), viewportHeight=\(viewportHeight), contentHeight=\(contentHeight), bottomThreshold=\(bottomThreshold)")
             lastBottomTriggerTime = currentTime
             onReachBottom?()
         } else if isNearBottom {
-            MasonryLogger.debug("🔍 接近底部但未触发: isNearBottom=\(isNearBottom), isScrollingDown=\(isScrollingDown), timeSinceLastTrigger=\(timeSinceLastTrigger)")
+            MasonryLogger.debug("🔍 接近底部但未触发: isNearBottom=\(isNearBottom), isScrollingDown=\(isScrollingDown), timeSinceLastTrigger=\(String(format: "%.2f", timeSinceLastTrigger))")
         }
     }
 
@@ -901,4 +944,7 @@ internal struct LazyMasonryContainer<Data: RandomAccessCollection, ID: Hashable,
             onReachBottom?()
         }
     }
+
+
 }
+

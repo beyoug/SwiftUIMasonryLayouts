@@ -93,7 +93,18 @@ internal struct MasonryLayoutEngine {
         sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?,
         cache: inout LazyLayoutCache
     ) -> LazyLayoutResult where Data.Element: Identifiable, Data.Element.ID == ID {
-        
+
+        // 🎯 布局引擎层面的零尺寸保护
+        guard containerSize.width > 0 && containerSize.height > 0 else {
+            MasonryLogger.warning("LayoutEngine: 容器尺寸无效 \(containerSize)，返回空布局结果")
+            return LazyLayoutResult(
+                itemFrames: [],
+                totalSize: .zero,
+                lineCount: 0,
+                itemPositions: [:]
+            )
+        }
+
         let parameters = LayoutParameters(
             containerSize: containerSize,
             axis: configuration.axis,
@@ -105,6 +116,7 @@ internal struct MasonryLayoutEngine {
         
         let lineCount = parameters.calculateLineCount()
         let lineSize = parameters.calculateLineSize(lineCount: lineCount)
+
         
         var itemFrames: [CGRect] = []
         var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)

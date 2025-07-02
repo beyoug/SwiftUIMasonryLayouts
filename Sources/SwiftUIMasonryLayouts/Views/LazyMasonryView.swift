@@ -37,12 +37,14 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     private let onReachTop: (() -> Void)?
     
     // MARK: - 状态管理
-    
+
     @State private var currentConfiguration: MasonryConfiguration?
     @State private var visibleRange: Range<Data.Index>?
     @State private var layoutCache: LazyLayoutCache = LazyLayoutCache()
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollOffset: CGPoint = .zero
+    @State private var lastValidSize: CGSize = .zero // 跟踪最后一个有效尺寸
+    @State private var layoutTrigger: Int = 0 // 强制重新布局的触发器
     
     // MARK: - 初始化方法
     
@@ -116,12 +118,17 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     
     public var body: some View {
         GeometryReader { geometry in
+            let currentSize = geometry.size
+            let isValidSize = currentSize.width > 50 && currentSize.height > 0 // 最小有效尺寸检查
+            let effectiveSize = isValidSize ? currentSize : lastValidSize
+
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     LazyMasonryContainer(
                         data: data,
-                        configuration: effectiveConfiguration(for: geometry.size.width),
+                        configuration: effectiveConfiguration(for: effectiveSize.width),
                         geometry: geometry,
+                        overrideContainerSize: effectiveSize.width > 50 ? effectiveSize : nil,
                         visibleRange: $visibleRange,
                         layoutCache: $layoutCache,
                         sizeCalculator: sizeCalculator,
@@ -131,6 +138,18 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
                         onReachBottom: onReachBottom,
                         onReachTop: onReachTop
                     )
+                    // 🎯 移除强制重新创建视图的ID，避免状态丢失
+                    // .id(layoutTrigger) // 这会导致整个容器重新创建
+                }
+                .onChange(of: effectiveSize) { oldSize, newSize in
+                    // 当有效尺寸发生变化时，更新lastValidSize并清除缓存
+                    if newSize.width > 50 && newSize.height > 0 &&
+                       abs(newSize.width - lastValidSize.width) > 1.0 {
+                        lastValidSize = newSize
+                        layoutCache.invalidate() // 清除所有缓存，强制重新计算
+                        // 🎯 移除强制重新创建视图的机制，只清除缓存即可
+                        // layoutTrigger += 1 // 这会导致整个视图重新创建，丢失状态
+                    }
                 }
                 .onScrollGeometryChange(for: CGPoint.self) { geometry in
                     // 使用 iOS 18 的新 API 获取滚动偏移
@@ -158,7 +177,7 @@ public struct LazyMasonryView<Data: RandomAccessCollection, ID: Hashable, Conten
     }
     
     // MARK: - 私有方法
-    
+
     /// 获取有效配置
     private func effectiveConfiguration(for width: CGFloat) -> MasonryConfiguration {
         if let breakpoints = breakpoints {
