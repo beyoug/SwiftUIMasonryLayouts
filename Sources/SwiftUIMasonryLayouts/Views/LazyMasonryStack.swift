@@ -52,7 +52,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         hSpacing: CGFloat = 8,
         vSpacing: CGFloat = 8,
         placement: MasonryPlacementMode = .fill,
-        bottomTriggerThreshold: CGFloat = 0.8,
+        bottomTriggerThreshold: CGFloat = 0.6,
         topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
@@ -244,7 +244,7 @@ public extension LazyMasonryStack {
         _ data: Data,
         columns: Int,
         spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.8,
+        bottomTriggerThreshold: CGFloat = 0.6,
         topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
@@ -276,7 +276,7 @@ public extension LazyMasonryStack {
         _ data: Data,
         rows: Int,
         spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.8,
+        bottomTriggerThreshold: CGFloat = 0.6,
         topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
@@ -308,7 +308,7 @@ public extension LazyMasonryStack {
         _ data: Data,
         adaptiveColumns minColumnWidth: CGFloat,
         spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.8,
+        bottomTriggerThreshold: CGFloat = 0.6,
         topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
@@ -342,7 +342,7 @@ public extension LazyMasonryStack {
         _ data: Data,
         adaptiveRows minRowHeight: CGFloat,
         spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.8,
+        bottomTriggerThreshold: CGFloat = 0.6,
         topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content

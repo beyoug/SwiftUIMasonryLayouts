@@ -117,7 +117,7 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     ///   - hSpacing: 水平间距，默认为8
     ///   - vSpacing: 垂直间距，默认为8
     ///   - placement: 放置模式，默认为智能填充
-    ///   - bottomTriggerThreshold: 底部触发阈值，默认为0.8 (80%)
+    ///   - bottomTriggerThreshold: 底部触发阈值，默认为0.6 (60%)
     ///   - topTriggerThreshold: 顶部触发阈值，默认为0 (顶部)
     ///   - debounceInterval: 防抖间隔，默认为1.0秒
     public init(
@@ -126,7 +126,7 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         hSpacing: CGFloat = 8,
         vSpacing: CGFloat = 8,
         placement: MasonryPlacementMode = .fill,
-        bottomTriggerThreshold: CGFloat = 0.8,
+        bottomTriggerThreshold: CGFloat = 0.6,
         topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0
     ) {

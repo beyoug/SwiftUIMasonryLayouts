@@ -19,7 +19,7 @@ struct LazyMasonryExample: View {
             
             Divider()
             
-            // 🚀 懒加载瀑布流 - 滚动50%触发加载
+            // 🚀 懒加载瀑布流 - 滚动60%触发加载
             LazyMasonryStack(
                 dataLoader.items,
                 columns: 2,
@@ -104,7 +104,7 @@ struct LazyMasonryExample: View {
 
                 Spacer()
 
-                Text("特性: 滚动50%触发加载")
+                Text("特性: 滚动60%触发加载")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
