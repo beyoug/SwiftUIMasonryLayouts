@@ -62,6 +62,23 @@ public struct MasonryStack<Content: View>: View {
         self.content = content
     }
     
+    /// 创建配置对象瀑布流视图
+    /// - Parameters:
+    ///   - configuration: 瀑布流配置对象
+    ///   - content: 内容构建器
+    public init(
+        configuration: MasonryConfiguration,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.axis = configuration.axis
+        self.lines = configuration.lines
+        self.hSpacing = configuration.hSpacing
+        self.vSpacing = configuration.vSpacing
+        self.placement = configuration.placement
+        self.breakpoints = nil
+        self.content = content
+    }
+
     /// 创建响应式瀑布流视图
     /// - Parameters:
     ///   - breakpoints: 响应式断点配置
@@ -177,5 +194,108 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
                   currentConfiguration?.vSpacing != newConfig.vSpacing {
             currentConfiguration = newConfig
         }
+    }
+}
+
+// MARK: - 便捷初始化扩展
+
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+public extension MasonryStack {
+
+    /// 创建列数配置的瀑布流
+    /// - Parameters:
+    ///   - columns: 列数
+    ///   - spacing: 间距
+    ///   - content: 内容构建器
+    init(
+        columns: Int,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            axis: .vertical,
+            lines: .fixed(columns),
+            hSpacing: spacing,
+            vSpacing: spacing,
+            placement: .fill,
+            content: content
+        )
+    }
+
+    /// 创建行数配置的瀑布流
+    /// - Parameters:
+    ///   - rows: 行数
+    ///   - spacing: 间距
+    ///   - content: 内容构建器
+    init(
+        rows: Int,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            axis: .horizontal,
+            lines: .fixed(rows),
+            hSpacing: spacing,
+            vSpacing: spacing,
+            placement: .fill,
+            content: content
+        )
+    }
+
+    /// 创建自适应列瀑布流
+    /// - Parameters:
+    ///   - minColumnWidth: 最小列宽
+    ///   - spacing: 间距
+    ///   - content: 内容构建器
+    init(
+        adaptiveColumns minColumnWidth: CGFloat,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            configuration: .adaptive(minColumnWidth: minColumnWidth, spacing: spacing),
+            content: content
+        )
+    }
+
+    /// 创建自适应行瀑布流
+    /// - Parameters:
+    ///   - minRowHeight: 最小行高
+    ///   - spacing: 间距
+    ///   - content: 内容构建器
+    init(
+        adaptiveRows minRowHeight: CGFloat,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            configuration: MasonryConfiguration(
+                axis: .horizontal,
+                lines: .adaptive(minSize: minRowHeight),
+                hSpacing: spacing,
+                vSpacing: spacing,
+                placement: .fill
+            ),
+            content: content
+        )
+    }
+
+    /// 创建响应式瀑布流（简化版）
+    /// - Parameters:
+    ///   - phoneColumns: 手机端列数
+    ///   - tabletColumns: 平板端列数
+    ///   - spacing: 间距
+    ///   - content: 内容构建器
+    init(
+        phoneColumns: Int,
+        tabletColumns: Int,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        let breakpoints: [CGFloat: MasonryConfiguration] = [
+            0: .columns(phoneColumns, spacing: spacing),
+            768: .columns(tabletColumns, spacing: spacing)
+        ]
+        self.init(breakpoints: breakpoints, content: content)
     }
 }

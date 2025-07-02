@@ -3,354 +3,365 @@
 //
 
 import SwiftUI
-#if canImport(UIKit)
-import UIKit
-#endif
 
-// MARK: - 懒加载瀑布流视图
+// MARK: - 懒加载瀑布流
 
-/// 专注于布局性能的懒加载瀑布流视图
-/// 只关注数据绑定、布局计算和渲染优化，不涉及业务逻辑
+/// 懒加载瀑布流：高效的瀑布流布局组件
+/// 🎯 核心功能：瀑布流布局 + 滚动事件检测
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Content: View>: View where Data.Element: Identifiable, Data.Element.ID == ID {
     
     // MARK: - 核心属性
-    
-    /// 数据源
+
     private let data: Data
-    /// 布局配置
     private let configuration: MasonryConfiguration
-    /// 响应式断点配置（可选）
-    private let breakpoints: [CGFloat: MasonryConfiguration]?
-    /// 内容构建器
     private let content: (Data.Element) -> Content
-    /// 项目尺寸计算器（性能优化）
-    private let sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?
 
-    // MARK: - 可扩展回调
 
-    /// 可见范围变化回调
-    private let onVisibleRangeChanged: ((Range<Data.Index>) -> Void)?
-    /// 滚动到底部回调（垂直布局）或右边回调（水平布局）
-    private let onReachBottom: (() -> Void)?
-    /// 滚动到顶部回调（垂直布局）或左边回调（水平布局）
-    private let onReachTop: (() -> Void)?
     
     // MARK: - 状态管理
 
-    @State private var currentConfiguration: MasonryConfiguration?
-    @State private var visibleRange: Range<Data.Index>?
-    @State private var debounceTask: Task<Void, Never>?
-    @State private var scrollOffset: CGPoint = .zero
-    @State private var lastValidSize: CGSize = .zero // 跟踪最后一个有效尺寸
-    @State private var layoutTrigger: Int = 0 // 强制重新布局的触发器
+    @State private var scrollOffset: CGFloat = 0
+    @State private var contentHeight: CGFloat = 0
+    @State private var viewportHeight: CGFloat = 0
+    @State private var lastBottomTriggerTime: TimeInterval = 0
+
+    // MARK: - 回调
+
+    private let onReachBottom: (() -> Void)?
+    private let onReachTop: (() -> Void)?
     
-    // MARK: - 初始化方法
+    // MARK: - 初始化
     
-    /// 创建懒加载瀑布流视图
-    public init(
-        _ data: Data,
-        configuration: MasonryConfiguration,
-        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)? = nil,
-        @ViewBuilder content: @escaping (Data.Element) -> Content
-    ) {
-        self.data = data
-        self.configuration = configuration
-        self.breakpoints = nil
-        self.sizeCalculator = sizeCalculator
-        self.content = content
-        self.onVisibleRangeChanged = nil
-        self.onReachBottom = nil
-        self.onReachTop = nil
-    }
-    
-    /// 创建懒加载瀑布流视图（便捷版本）
+    /// 创建懒加载瀑布流
     /// - Parameters:
     ///   - data: 数据源
-    ///   - columns: 列数，默认为2
-    ///   - spacing: 间距，默认为8
+    ///   - axis: 布局轴向
+    ///   - lines: 行/列配置
+    ///   - hSpacing: 水平间距
+    ///   - vSpacing: 垂直间距
+    ///   - placement: 放置模式
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
+    ///   - debounceInterval: 防抖间隔 (秒)
     ///   - content: 内容构建器
     public init(
         _ data: Data,
-        columns: Int = 2,
-        spacing: CGFloat = 8,
+        axis: Axis = .vertical,
+        lines: MasonryLines = .fixed(2),
+        hSpacing: CGFloat = 8,
+        vSpacing: CGFloat = 8,
+        placement: MasonryPlacementMode = .fill,
+        bottomTriggerThreshold: CGFloat = 0.8,
+        topTriggerThreshold: CGFloat = 0,
+        debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.data = data
         self.configuration = MasonryConfiguration(
-            axis: .vertical,
-            lines: .fixed(columns),
-            hSpacing: spacing,
-            vSpacing: spacing
+            axis: axis,
+            lines: lines,
+            hSpacing: hSpacing,
+            vSpacing: vSpacing,
+            placement: placement,
+            bottomTriggerThreshold: bottomTriggerThreshold,
+            topTriggerThreshold: topTriggerThreshold,
+            debounceInterval: debounceInterval
         )
-        self.breakpoints = nil
-        self.sizeCalculator = nil
         self.content = content
-        self.onVisibleRangeChanged = nil
         self.onReachBottom = nil
         self.onReachTop = nil
     }
     
-    /// 创建响应式懒加载瀑布流视图
+    /// 创建懒加载瀑布流（使用配置对象）
     /// - Parameters:
     ///   - data: 数据源
-    ///   - breakpoints: 响应式断点配置
-    ///   - sizeCalculator: 可选的项目尺寸计算器
+    ///   - configuration: 完整配置对象
     ///   - content: 内容构建器
     public init(
         _ data: Data,
-        breakpoints: [CGFloat: MasonryConfiguration],
-        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)? = nil,
+        configuration: MasonryConfiguration,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.data = data
-        self.configuration = .default
-        self.breakpoints = breakpoints
-        self.sizeCalculator = sizeCalculator
+        self.configuration = configuration
         self.content = content
-        self.onVisibleRangeChanged = nil
         self.onReachBottom = nil
         self.onReachTop = nil
+    }
+
+    /// 内部初始化方法（支持回调配置）
+    private init(
+        _ data: Data,
+        configuration: MasonryConfiguration,
+        @ViewBuilder content: @escaping (Data.Element) -> Content,
+        onReachBottom: (() -> Void)?,
+        onReachTop: (() -> Void)?
+    ) {
+        self.data = data
+        self.configuration = configuration
+        self.content = content
+        self.onReachBottom = onReachBottom
+        self.onReachTop = onReachTop
+    }
+    
+    // MARK: - 计算属性
+    
+    /// 当前显示的项目
+    private var visibleItems: [Data.Element] {
+        return Array(data)
     }
     
     // MARK: - 视图主体
     
     public var body: some View {
         GeometryReader { geometry in
-            let currentSize = geometry.size
-            let isValidSize = currentSize.width > 50 && currentSize.height > 0 // 最小有效尺寸检查
-            let effectiveSize = isValidSize ? currentSize : lastValidSize
-
-            ScrollViewReader { scrollProxy in
-                ScrollView {
-                    LazyMasonryContainer(
-                        data: data,
-                        configuration: effectiveConfiguration(for: effectiveSize.width),
-                        geometry: geometry,
-                        overrideContainerSize: effectiveSize.width > 50 ? effectiveSize : nil,
-                        visibleRange: $visibleRange,
-                        sizeCalculator: sizeCalculator,
-                        content: content,
-                        externalScrollOffset: scrollOffset, // 传递滚动偏移
-                        onVisibleRangeChanged: onVisibleRangeChanged,
-                        onReachBottom: onReachBottom,
-                        onReachTop: onReachTop
-                    )
-                    // 🎯 移除强制重新创建视图的ID，避免状态丢失
-                    // .id(layoutTrigger) // 这会导致整个容器重新创建
-                }
-                .onChange(of: effectiveSize) { oldSize, newSize in
-                    // 当有效尺寸发生变化时，更新lastValidSize
-                    if newSize.width > 50 && newSize.height > 0 &&
-                       abs(newSize.width - lastValidSize.width) > 1.0 {
-                        lastValidSize = newSize
+            ScrollView {
+                MasonryLayout(
+                    axis: configuration.axis,
+                    lines: configuration.lines,
+                    hSpacing: configuration.hSpacing,
+                    vSpacing: configuration.vSpacing,
+                    placement: configuration.placement
+                ) {
+                    ForEach(visibleItems, id: \.id) { item in
+                        content(item)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                }
-                .onScrollGeometryChange(for: CGPoint.self) { geometry in
-                    // 使用 iOS 18 的新 API 获取滚动偏移
-                    return geometry.contentOffset
-                } action: { oldValue, newValue in
-                    // 更新滚动偏移状态
-                    scrollOffset = newValue
-                }
-                .onChange(of: geometry.size.width) { _, newWidth in
-                    updateConfigurationWithDebounce(for: newWidth)
-                }
-                .onAppear {
-                    if let breakpoints = breakpoints {
-                        updateConfiguration(for: geometry.size.width, breakpoints: breakpoints)
-                    }
-                }
 
+
+                }
+                .background(
+                    GeometryReader { contentGeometry in
+                        Color.clear
+                            .onAppear {
+                                contentHeight = contentGeometry.size.height
+                            }
+                            .onChange(of: contentGeometry.size.height) { _, newHeight in
+                                contentHeight = newHeight
+                            }
+                    }
+                )
             }
+            .onAppear {
+                viewportHeight = geometry.size.height
+            }
+            .onChange(of: geometry.size.height) { _, newHeight in
+                viewportHeight = newHeight
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { scrollGeometry in
+                return scrollGeometry.contentOffset.y
+            } action: { oldValue, newValue in
+                handleScrollChange(newValue)
+            }
+
         }
     }
     
     // MARK: - 私有方法
 
-    /// 获取有效配置
-    private func effectiveConfiguration(for width: CGFloat) -> MasonryConfiguration {
-        if let breakpoints = breakpoints {
-            return currentConfiguration ?? 
-                   breakpoints.filter { width >= $0.key }
-                             .max(by: { $0.key < $1.key })?.value ?? 
-                   .default
-        } else {
-            return configuration
-        }
+    /// 处理滚动变化
+    private func handleScrollChange(_ newOffset: CGFloat) {
+        scrollOffset = newOffset
+        checkScrollTriggers()
     }
-    
-    /// 防抖更新配置
-    private func updateConfigurationWithDebounce(for width: CGFloat) {
-        guard let breakpoints = breakpoints else { return }
 
-        debounceTask?.cancel()
-        debounceTask = Task {
-            // 使用全局配置的防抖时间
-            try? await Task.sleep(nanoseconds: MasonryInternalConfig.responsiveDebounceDelay)
-            guard !Task.isCancelled else { return }
+    /// 检查滚动触发条件
+    private func checkScrollTriggers() {
+        guard contentHeight > 0 && viewportHeight > 0 else { return }
 
-            await MainActor.run {
-                // 由于 struct 不需要 weak self，直接调用
-                updateConfiguration(for: width, breakpoints: breakpoints)
+        let scrollProgress = max(0, scrollOffset) / max(contentHeight - viewportHeight, 1)
+
+        // 底部触发检测
+        if scrollProgress >= configuration.bottomTriggerThreshold {
+            let currentTime = Date().timeIntervalSince1970
+            let timeSinceLastTrigger = currentTime - lastBottomTriggerTime
+
+            if timeSinceLastTrigger >= configuration.debounceInterval {
+                lastBottomTriggerTime = currentTime
+                onReachBottom?()
             }
         }
-    }
-    
-    /// 更新配置
-    private func updateConfiguration(for width: CGFloat, breakpoints: [CGFloat: MasonryConfiguration]) {
-        guard width > 0 else { return }
 
-        let newConfig = breakpoints
-            .filter { width >= $0.key }
-            .max(by: { $0.key < $1.key })?.value ?? .default
-
-        let configChanged = currentConfiguration?.lines != newConfig.lines ||
-                           currentConfiguration?.axis != newConfig.axis ||
-                           currentConfiguration?.placement != newConfig.placement
-
-        if configChanged {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                currentConfiguration = newConfig
-            }
-        } else if currentConfiguration?.hSpacing != newConfig.hSpacing ||
-                  currentConfiguration?.vSpacing != newConfig.vSpacing {
-            currentConfiguration = newConfig
+        // 顶部触发检测
+        if scrollOffset <= configuration.topTriggerThreshold {
+            onReachTop?()
         }
     }
+
+
+
+
+
+
+
+
 
 
 }
 
-// MARK: - 可扩展接口
-
-/// 懒加载瀑布流的回调配置
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-public struct LazyMasonryCallbacks<Data: RandomAccessCollection> {
-    /// 可见范围变化回调
-    public let onVisibleRangeChanged: ((Range<Data.Index>) -> Void)?
-    /// 滚动到底部回调（垂直布局）或右边回调（水平布局）
-    public let onReachBottom: (() -> Void)?
-    /// 滚动到顶部回调（垂直布局）或左边回调（水平布局）
-    public let onReachTop: (() -> Void)?
-
-    /// 创建回调配置
-    public init(
-        onVisibleRangeChanged: ((Range<Data.Index>) -> Void)? = nil,
-        onReachBottom: (() -> Void)? = nil,
-        onReachTop: (() -> Void)? = nil
-    ) {
-        self.onVisibleRangeChanged = onVisibleRangeChanged
-        self.onReachBottom = onReachBottom
-        self.onReachTop = onReachTop
-    }
-
-    /// 创建回调配置（使用通用命名）
-    public init(
-        onVisibleRangeChanged: ((Range<Data.Index>) -> Void)? = nil,
-        onReachEnd: (() -> Void)? = nil,
-        onReachStart: (() -> Void)? = nil
-    ) {
-        self.onVisibleRangeChanged = onVisibleRangeChanged
-        self.onReachBottom = onReachEnd
-        self.onReachTop = onReachStart
-    }
-}
+// MARK: - 链式配置方法
 
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public extension LazyMasonryStack {
 
-    /// 配置回调（推荐方式，避免多次实例创建）
-    /// - Parameter callbacks: 回调配置
-    /// - Returns: 配置了回调的视图
-    func callbacks(_ callbacks: LazyMasonryCallbacks<Data>) -> LazyMasonryStack {
-        LazyMasonryStack(
-            data: data,
-            configuration: configuration,
-            breakpoints: breakpoints,
-            sizeCalculator: sizeCalculator,
-            content: content,
-            onVisibleRangeChanged: callbacks.onVisibleRangeChanged,
-            onReachBottom: callbacks.onReachBottom,
-            onReachTop: callbacks.onReachTop
-        )
-    }
-
-    /// 添加可见范围变化监听（用于业务层实现分页等逻辑）
-    func onVisibleRangeChanged(_ action: @escaping (Range<Data.Index>) -> Void) -> LazyMasonryStack {
-        LazyMasonryStack(
-            data: data,
-            configuration: configuration,
-            breakpoints: breakpoints,
-            sizeCalculator: sizeCalculator,
-            content: content,
-            onVisibleRangeChanged: action,
-            onReachBottom: onReachBottom,
-            onReachTop: onReachTop
-        )
-    }
-
-    /// 添加滚动到底部监听
     func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack {
-        LazyMasonryStack(
-            data: data,
+        return LazyMasonryStack(
+            data,
             configuration: configuration,
-            breakpoints: breakpoints,
-            sizeCalculator: sizeCalculator,
             content: content,
-            onVisibleRangeChanged: onVisibleRangeChanged,
             onReachBottom: action,
             onReachTop: onReachTop
         )
     }
-
-    /// 添加滚动到顶部监听
+    
     func onReachTop(_ action: @escaping () -> Void) -> LazyMasonryStack {
-        LazyMasonryStack(
-            data: data,
+        return LazyMasonryStack(
+            data,
             configuration: configuration,
-            breakpoints: breakpoints,
-            sizeCalculator: sizeCalculator,
             content: content,
-            onVisibleRangeChanged: onVisibleRangeChanged,
             onReachBottom: onReachBottom,
             onReachTop: action
         )
     }
-
-    /// 添加滚动到起始位置监听（垂直布局的顶部，水平布局的左边）
-    func onReachStart(_ action: @escaping () -> Void) -> LazyMasonryStack {
-        onReachTop(action)
-    }
-
-    /// 添加滚动到结束位置监听（垂直布局的底部，水平布局的右边）
-    func onReachEnd(_ action: @escaping () -> Void) -> LazyMasonryStack {
-        onReachBottom(action)
-    }
 }
 
-// MARK: - 内部初始化器
+// MARK: - 便捷初始化方法
 
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-private extension LazyMasonryStack {
+public extension LazyMasonryStack {
 
+    /// 创建列数配置的懒加载瀑布流
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - columns: 列数
+    ///   - spacing: 间距
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
+    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - content: 内容构建器
     init(
-        data: Data,
-        configuration: MasonryConfiguration,
-        breakpoints: [CGFloat: MasonryConfiguration]?,
-        sizeCalculator: ((Data.Element, CGFloat) -> CGSize)?,
-        content: @escaping (Data.Element) -> Content,
-        onVisibleRangeChanged: ((Range<Data.Index>) -> Void)?,
-        onReachBottom: (() -> Void)?,
-        onReachTop: (() -> Void)?
+        _ data: Data,
+        columns: Int,
+        spacing: CGFloat = 8,
+        bottomTriggerThreshold: CGFloat = 0.8,
+        topTriggerThreshold: CGFloat = 0,
+        debounceInterval: TimeInterval = 1.0,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
-        self.data = data
-        self.configuration = configuration
-        self.breakpoints = breakpoints
-        self.sizeCalculator = sizeCalculator
-        self.content = content
-        self.onVisibleRangeChanged = onVisibleRangeChanged
-        self.onReachBottom = onReachBottom
-        self.onReachTop = onReachTop
+        self.init(
+            data,
+            axis: .vertical,
+            lines: .fixed(columns),
+            hSpacing: spacing,
+            vSpacing: spacing,
+            placement: .fill,
+            bottomTriggerThreshold: bottomTriggerThreshold,
+            topTriggerThreshold: topTriggerThreshold,
+            debounceInterval: debounceInterval,
+            content: content
+        )
+    }
+
+    /// 创建行数配置的懒加载瀑布流
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - rows: 行数
+    ///   - spacing: 间距
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
+    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        rows: Int,
+        spacing: CGFloat = 8,
+        bottomTriggerThreshold: CGFloat = 0.8,
+        topTriggerThreshold: CGFloat = 0,
+        debounceInterval: TimeInterval = 1.0,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            axis: .horizontal,
+            lines: .fixed(rows),
+            hSpacing: spacing,
+            vSpacing: spacing,
+            placement: .fill,
+            bottomTriggerThreshold: bottomTriggerThreshold,
+            topTriggerThreshold: topTriggerThreshold,
+            debounceInterval: debounceInterval,
+            content: content
+        )
+    }
+
+    /// 创建自适应列懒加载瀑布流
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - minColumnWidth: 最小列宽
+    ///   - spacing: 间距
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
+    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        adaptiveColumns minColumnWidth: CGFloat,
+        spacing: CGFloat = 8,
+        bottomTriggerThreshold: CGFloat = 0.8,
+        topTriggerThreshold: CGFloat = 0,
+        debounceInterval: TimeInterval = 1.0,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            configuration: MasonryConfiguration(
+                axis: .vertical,
+                lines: .adaptive(minSize: minColumnWidth),
+                hSpacing: spacing,
+                vSpacing: spacing,
+                placement: .fill,
+                bottomTriggerThreshold: bottomTriggerThreshold,
+                topTriggerThreshold: topTriggerThreshold,
+                debounceInterval: debounceInterval
+            ),
+            content: content
+        )
+    }
+
+    /// 创建自适应行懒加载瀑布流
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - minRowHeight: 最小行高
+    ///   - spacing: 间距
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
+    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        adaptiveRows minRowHeight: CGFloat,
+        spacing: CGFloat = 8,
+        bottomTriggerThreshold: CGFloat = 0.8,
+        topTriggerThreshold: CGFloat = 0,
+        debounceInterval: TimeInterval = 1.0,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            configuration: MasonryConfiguration(
+                axis: .horizontal,
+                lines: .adaptive(minSize: minRowHeight),
+                hSpacing: spacing,
+                vSpacing: spacing,
+                placement: .fill,
+                bottomTriggerThreshold: bottomTriggerThreshold,
+                topTriggerThreshold: topTriggerThreshold,
+                debounceInterval: debounceInterval
+            ),
+            content: content
+        )
     }
 }
+
+

@@ -64,6 +64,7 @@ final class PaginationTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 600_000_000)
             loadCount += 1
             
+            // 测试中的日志输出保持 print，因为测试环境需要直接输出
             print("加载第 \(loadCount) 次 - 当前页: \(dataLoader.currentPage), 项目数: \(dataLoader.items.count), hasNextPage: \(dataLoader.hasNextPage)")
         }
         

@@ -24,6 +24,9 @@ public struct MasonryLayout: Layout, Sendable {
     /// 放置模式
     public let placement: MasonryPlacementMode
 
+    /// 缓存的配置哈希值（避免重复计算）
+    private let configurationHash: Int
+
     // MARK: - 初始化
 
     /// 创建瀑布流布局
@@ -54,6 +57,15 @@ public struct MasonryLayout: Layout, Sendable {
         self.hSpacing = config.hSpacing
         self.vSpacing = config.vSpacing
         self.placement = config.placement
+
+        // 预计算配置哈希值
+        self.configurationHash = CacheManager.generateConfigurationHash(
+            axis: config.axis,
+            lines: config.lines,
+            hSpacing: config.hSpacing,
+            vSpacing: config.vSpacing,
+            placement: config.placement
+        )
     }
 
     /// 从配置创建布局
@@ -64,6 +76,15 @@ public struct MasonryLayout: Layout, Sendable {
         self.hSpacing = configuration.hSpacing
         self.vSpacing = configuration.vSpacing
         self.placement = configuration.placement
+
+        // 预计算配置哈希值
+        self.configurationHash = CacheManager.generateConfigurationHash(
+            axis: configuration.axis,
+            lines: configuration.lines,
+            hSpacing: configuration.hSpacing,
+            vSpacing: configuration.vSpacing,
+            placement: configuration.placement
+        )
     }
 
     // MARK: - Layout协议实现
@@ -165,9 +186,7 @@ public struct MasonryLayout: Layout, Sendable {
             return
         }
 
-        // 更新缓存
-        updateCache(&cache, subviews: subviews)
-
+        // 注意：不需要再次调用 updateCache，因为 performLayoutCalculation 会处理缓存
         // 使用布局引擎计算
         let result = performLayoutCalculation(containerSize: containerSize, subviews: subviews, cache: &cache)
 
@@ -193,18 +212,12 @@ public struct MasonryLayout: Layout, Sendable {
     /// 更新缓存
     public func updateCache(_ cache: inout LayoutCache, subviews: Subviews) {
         // 当子视图数量或配置变化时清除缓存
-        let currentConfigHash = CacheManager.generateConfigurationHash(
-            axis: axis,
-            lines: lines,
-            hSpacing: hSpacing,
-            vSpacing: vSpacing,
-            placement: placement
-        )
+        let needsInvalidation = cache.subviewCount != subviews.count || cache.lastConfigurationHash != configurationHash
 
-        if cache.subviewCount != subviews.count || cache.lastConfigurationHash != currentConfigHash {
+        if needsInvalidation {
             cache.invalidate()
             cache.subviewCount = subviews.count
-            cache.lastConfigurationHash = currentConfigHash
+            cache.lastConfigurationHash = configurationHash
         }
     }
 
@@ -214,19 +227,14 @@ public struct MasonryLayout: Layout, Sendable {
     private func performLayoutCalculation(containerSize: CGSize, subviews: Subviews, cache: inout LayoutCache) -> LayoutResult {
         let startTime = CFAbsoluteTimeGetCurrent()
 
-        // 检查缓存
-        let currentConfigHash = CacheManager.generateConfigurationHash(
-            axis: axis,
-            lines: lines,
-            hSpacing: hSpacing,
-            vSpacing: vSpacing,
-            placement: placement
-        )
+        // 确保缓存是最新的
+        updateCache(&cache, subviews: subviews)
 
+        // 检查缓存
         if CacheManager.isCacheValid(
             cache: cache,
             containerSize: containerSize,
-            configurationHash: currentConfigHash,
+            configurationHash: configurationHash,
             subviewCount: subviews.count
         ), let cachedResult = cache.cachedResult {
             cache.recordCacheHit()
@@ -254,7 +262,7 @@ public struct MasonryLayout: Layout, Sendable {
         cache.lastCalculationTime = endTime - startTime
         cache.cachedResult = result
         cache.lastContainerSize = containerSize
-        cache.lastConfigurationHash = currentConfigHash
+        cache.lastConfigurationHash = configurationHash
 
         return result
     }

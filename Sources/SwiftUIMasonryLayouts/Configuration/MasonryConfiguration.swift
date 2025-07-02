@@ -98,7 +98,16 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     public let vSpacing: CGFloat
     /// 放置模式
     public let placement: MasonryPlacementMode
-    
+
+    // MARK: - 滚动配置
+
+    /// 底部触发阈值 (0.0-1.0，表示滚动进度百分比)
+    public let bottomTriggerThreshold: CGFloat
+    /// 顶部触发阈值 (像素值，表示距离顶部的像素距离)
+    public let topTriggerThreshold: CGFloat
+    /// 防抖间隔 (秒，避免重复触发)
+    public let debounceInterval: TimeInterval
+
     // MARK: - 初始化
     
     /// 创建瀑布流配置
@@ -108,25 +117,43 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     ///   - hSpacing: 水平间距，默认为8
     ///   - vSpacing: 垂直间距，默认为8
     ///   - placement: 放置模式，默认为智能填充
+    ///   - bottomTriggerThreshold: 底部触发阈值，默认为0.8 (80%)
+    ///   - topTriggerThreshold: 顶部触发阈值，默认为0 (顶部)
+    ///   - debounceInterval: 防抖间隔，默认为1.0秒
     public init(
         axis: Axis = .vertical,
         lines: MasonryLines = .fixed(2),
         hSpacing: CGFloat = 8,
         vSpacing: CGFloat = 8,
-        placement: MasonryPlacementMode = .fill
+        placement: MasonryPlacementMode = .fill,
+        bottomTriggerThreshold: CGFloat = 0.8,
+        topTriggerThreshold: CGFloat = 0,
+        debounceInterval: TimeInterval = 1.0
     ) {
         self.axis = axis
         self.lines = lines
         self.hSpacing = max(0, hSpacing)
         self.vSpacing = max(0, vSpacing)
         self.placement = placement
-        
+        self.bottomTriggerThreshold = max(0, min(1, bottomTriggerThreshold))
+        self.topTriggerThreshold = max(0, topTriggerThreshold)
+        self.debounceInterval = max(0.1, debounceInterval)
+
         #if DEBUG
         if hSpacing < 0 {
             MasonryLogger.warning("Validation: 水平间距不能为负数，已自动修正为0")
         }
         if vSpacing < 0 {
             MasonryLogger.warning("Validation: 垂直间距不能为负数，已自动修正为0")
+        }
+        if bottomTriggerThreshold < 0 || bottomTriggerThreshold > 1 {
+            MasonryLogger.warning("Validation: 底部触发阈值应在0-1之间，已自动修正")
+        }
+        if topTriggerThreshold < 0 {
+            MasonryLogger.warning("Validation: 顶部触发阈值不能为负数，已自动修正为0")
+        }
+        if debounceInterval < 0.1 {
+            MasonryLogger.warning("Validation: 防抖间隔不能小于0.1秒，已自动修正")
         }
         #endif
     }
@@ -144,6 +171,18 @@ public extension MasonryConfiguration {
 
     /// 水平双行配置
     static let twoRows = rows(2)
+
+    /// 早期触发配置（滚动到50%时触发，适合快速加载）
+    static let earlyTrigger = MasonryConfiguration(bottomTriggerThreshold: 0.5)
+
+    /// 延迟触发配置（滚动到90%时触发，适合节省资源）
+    static let lateTrigger = MasonryConfiguration(bottomTriggerThreshold: 0.9)
+
+    /// 快速响应配置（0.5秒防抖，适合实时场景）
+    static let fastResponse = MasonryConfiguration(debounceInterval: 0.5)
+
+    /// 慢速响应配置（2秒防抖，适合避免频繁请求）
+    static let slowResponse = MasonryConfiguration(debounceInterval: 2.0)
 }
 
 // MARK: - 便捷方法

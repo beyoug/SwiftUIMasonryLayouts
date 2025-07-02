@@ -4,13 +4,13 @@
 
 import SwiftUI
 
-/// 测试分页修复的示例
+/// 智能瀑布流示例
+/// 🎯 展示懒加载瀑布流的分页加载功能
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-struct PaginationFixTestExample: View {
+struct LazyMasonryExample: View {
     
     @StateObject private var dataLoader = TestDataLoader(pageSize: 10)
     @State private var loadCount = 0
-    @State private var lastLoadTime = Date()
     
     var body: some View {
         VStack(spacing: 16) {
@@ -19,47 +19,59 @@ struct PaginationFixTestExample: View {
             
             Divider()
             
-            // 瀑布流内容 - 使用系统默认算法（最稳定）
-            LazyMasonryStack(dataLoader.items, configuration: .columns(2)) { item in
-                itemView(item)
+            // 🚀 懒加载瀑布流 - 滚动50%触发加载
+            LazyMasonryStack(
+                dataLoader.items,
+                columns: 2,
+                spacing: 8
+            ) { item in
+                smartItemView(item)
             }
+
             .onReachBottom {
+                // 🎯 滚动到底部回调 - 标准的分页加载
                 loadCount += 1
-                lastLoadTime = Date()
 
                 let timestamp = DateFormatter.timeFormatter.string(from: Date())
-                print("🎯 [\(timestamp)] 底部回调 #\(loadCount)")
-                print("   📊 状态: hasNextPage=\(dataLoader.hasNextPage), isLoading=\(dataLoader.isLoading)")
-                print("   📄 页面: \(dataLoader.currentPage + 1)/\(dataLoader.totalPages), 项目数: \(dataLoader.items.count)/\(dataLoader.totalItems)")
+                MasonryLogger.info("[\(timestamp)] 滚动到底部触发 #\(loadCount)")
+                MasonryLogger.debug("状态: hasNextPage=\(dataLoader.hasNextPage), isLoading=\(dataLoader.isLoading)")
+                MasonryLogger.debug("页面: \(dataLoader.currentPage + 1)/\(dataLoader.totalPages), 项目数: \(dataLoader.items.count)/\(dataLoader.totalItems)")
 
                 if dataLoader.hasNextPage && !dataLoader.isLoading {
-                    print("✅ 开始加载第 \(dataLoader.currentPage + 1) 页...")
+                    MasonryLogger.info("开始加载第 \(dataLoader.currentPage + 1) 页...")
                     dataLoader.loadNextPage()
                 } else {
-                    print("❌ 跳过加载")
+                    MasonryLogger.debug("跳过加载")
                     if !dataLoader.hasNextPage {
-                        print("   🏁 原因: 已到达最后一页")
+                        MasonryLogger.debug("原因: 已到达最后一页")
                     }
                     if dataLoader.isLoading {
-                        print("   ⏳ 原因: 正在加载中")
+                        MasonryLogger.debug("原因: 正在加载中")
                     }
                 }
             }
+
         }
-        .navigationTitle("垂直轴向分页")
+        .navigationTitle("懒加载瀑布流")
+        .padding(.horizontal)
         .onAppear {
-            print("🏗️ 视图出现，开始初始化")
+            MasonryLogger.info("智能瀑布流视图出现，开始初始化")
+            MasonryLogger.debug("当前数据状态: items=\(dataLoader.items.count), isLoading=\(dataLoader.isLoading)")
             if dataLoader.items.isEmpty {
+                MasonryLogger.info("开始加载初始数据...")
                 dataLoader.loadInitialData()
+            } else {
+                MasonryLogger.debug("数据已存在，跳过初始化")
             }
         }
+        .onChange(of: dataLoader.items.count) { oldCount, newCount in
+            MasonryLogger.debug("数据加载完成: \(oldCount) → \(newCount) 项")
+        }
     }
-
-
-
+    
     private var statusPanel: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("分页状态")
+            Text("懒加载瀑布流状态")
                 .font(.headline)
             
             HStack {
@@ -74,7 +86,7 @@ struct PaginationFixTestExample: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("有下一页: \(dataLoader.hasNextPage ? "是" : "否")")
                     Text("加载中: \(dataLoader.isLoading ? "是" : "否")")
-                    Text("最后加载: \(timeAgo(lastLoadTime))")
+                    Text("显示: 全部已加载数据")
                 }
             }
             .font(.caption)
@@ -85,26 +97,25 @@ struct PaginationFixTestExample: View {
             // 手动控制
             HStack {
                 Button("重置") {
-                    print("🔄 重置数据")
+                    MasonryLogger.info("重置懒加载瀑布流数据")
                     dataLoader.loadInitialData()
                     loadCount = 0
-                    lastLoadTime = Date()
                 }
 
                 Spacer()
 
-                Text("期望: 自动连续加载")
+                Text("特性: 滚动50%触发加载")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
         }
         .padding()
-        .background(Color.blue.opacity(0.05))
+        .background(Color.green.opacity(0.05))
         .cornerRadius(12)
-        .padding(.horizontal)
     }
     
-    private func itemView(_ item: TestDataItem) -> some View {
+    /// 智能项目视图 - 真正的内容自适应
+    private func smartItemView(_ item: TestDataItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // 头部信息
             HStack {
@@ -126,21 +137,23 @@ struct PaginationFixTestExample: View {
                     .cornerRadius(3)
             }
 
-            // 标题
+            // 标题 - 完全自适应，无行数限制
             Text(item.title)
                 .font(.headline)
                 .fontWeight(.semibold)
-                .lineLimit(2)
                 .multilineTextAlignment(.leading)
+                // 🎯 关键：让文本完全自适应
+                .fixedSize(horizontal: false, vertical: true)
 
-            // 描述
+            // 描述 - 完全自适应，无行数限制
             Text(item.description)
-                .font(.caption)
-                .lineLimit(3)
+                .font(.body)
                 .multilineTextAlignment(.leading)
                 .opacity(0.9)
+                // 🎯 关键：让文本完全自适应
+                .fixedSize(horizontal: false, vertical: true)
 
-            // 标签
+            // 标签 - 自适应布局
             if !item.tags.isEmpty {
                 LazyVGrid(columns: [
                     GridItem(.adaptive(minimum: 50), spacing: 4)
@@ -159,23 +172,24 @@ struct PaginationFixTestExample: View {
 
             // 底部信息
             HStack {
-                Text("页面 \((item.id - 1) / 10 + 1)")
+                Text("页面 \((item.id - 1) / 15 + 1)")
                     .font(.caption2)
                     .opacity(0.7)
 
                 Spacer()
 
-                Text("高度: \(item.height)")
+                Text("智能自适应")
                     .font(.caption2)
                     .opacity(0.7)
             }
         }
         .padding(12)
-        .frame(height: item.cgHeight)
         .background(item.swiftUIColor.gradient)
         .foregroundColor(.white)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        // 🎯 关键：让整个视图完全自适应
+        .fixedSize(horizontal: false, vertical: true)
     }
     
     private func timeAgo(_ date: Date) -> String {
@@ -201,8 +215,8 @@ private extension DateFormatter {
 // MARK: - 预览
 
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-#Preview("垂直轴向分页测试") {
+#Preview("懒加载瀑布流") {
     NavigationView {
-        PaginationFixTestExample()
+        LazyMasonryExample()
     }
 }

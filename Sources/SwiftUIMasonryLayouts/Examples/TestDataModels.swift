@@ -67,19 +67,19 @@ class TestDataLoader: ObservableObject {
     static func getInstance(pageSize: Int = 10) -> TestDataLoader {
         // 使用pageSize作为key，确保不同pageSize有不同的实例
         if let existing = _instances[pageSize] {
-            print("🔄 复用现有 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
+            MasonryLogger.debug("复用现有 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
             return existing
         } else {
             let newInstance = TestDataLoader(pageSize: pageSize)
             _instances[pageSize] = newInstance
-            print("🆕 创建新的 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(newInstance))")
+            MasonryLogger.debug("创建新的 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(newInstance))")
             return newInstance
         }
     }
 
     /// 重置所有实例（用于调试）
     static func resetAllInstances() {
-        print("🗑️ 重置所有 TestDataLoader 实例")
+        MasonryLogger.debug("重置所有 TestDataLoader 实例")
         _instances.removeAll()
     }
     
@@ -100,7 +100,7 @@ class TestDataLoader: ObservableObject {
     
     init(pageSize: Int = 20) {
         self.pageSize = pageSize
-        print("🏗️ TestDataLoader 初始化 - pageSize: \(pageSize), 实例ID: \(ObjectIdentifier(self))")
+        MasonryLogger.debug("TestDataLoader 初始化 - pageSize: \(pageSize), 实例ID: \(ObjectIdentifier(self))")
         loadAllData()
     }
     
@@ -115,10 +115,10 @@ class TestDataLoader: ObservableObject {
                 allData = try JSONDecoder().decode([TestDataItem].self, from: data)
                 totalItems = allData.count
                 totalPages = (totalItems + pageSize - 1) / pageSize
-                print("📁 从JSON加载数据成功 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
+                MasonryLogger.info("从JSON加载数据成功 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
                 return
             } catch {
-                print("加载JSON文件失败: \(error)")
+                MasonryLogger.warning("加载JSON文件失败: \(error)")
             }
         }
 
@@ -150,7 +150,7 @@ class TestDataLoader: ObservableObject {
 
         totalItems = allData.count
         totalPages = (totalItems + pageSize - 1) / pageSize
-        print("🔧 生成示例数据完成 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
+        MasonryLogger.info("生成示例数据完成 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
     }
     
     /// 加载第一页数据
@@ -192,7 +192,7 @@ class TestDataLoader: ObservableObject {
             self.hasNextPage = page < self.totalPages - 1
             self.isLoading = false
 
-            print("📊 数据加载完成 - 页面: \(page + 1)/\(self.totalPages), 项目数: \(self.items.count)/\(self.totalItems)")
+            MasonryLogger.debug("数据加载完成 - 页面: \(page + 1)/\(self.totalPages), 项目数: \(self.items.count)/\(self.totalItems)")
         }
     }
     
