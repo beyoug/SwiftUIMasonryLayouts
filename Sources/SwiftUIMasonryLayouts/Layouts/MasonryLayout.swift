@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - 瀑布流布局协议实现
 
 /// 瀑布流布局的核心实现
-/// 基于SwiftUI的Layout协议，专注于Layout协议的实现
+/// 基于 SwiftUI Layout 协议，提供高性能的瀑布流布局
 @available(iOS 18.0, macOS 15.0, *)
 public struct MasonryLayout: Layout, Sendable {
 
@@ -43,7 +43,6 @@ public struct MasonryLayout: Layout, Sendable {
         vSpacing: CGFloat = 8,
         placement: MasonryPlacementMode = .fill
     ) {
-        // 使用配置类的验证逻辑，避免重复
         let config = MasonryConfiguration(
             axis: axis,
             lines: lines,
@@ -77,7 +76,6 @@ public struct MasonryLayout: Layout, Sendable {
         self.vSpacing = configuration.vSpacing
         self.placement = configuration.placement
 
-        // 预计算配置哈希值
         self.configurationHash = CacheManager.generateConfigurationHash(
             axis: configuration.axis,
             lines: configuration.lines,
@@ -91,18 +89,13 @@ public struct MasonryLayout: Layout, Sendable {
 
     /// 计算布局尺寸
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) -> CGSize {
-        // 智能处理容器尺寸，适应各种嵌套布局场景
         let containerSize = determineContainerSize(from: proposal, subviews: subviews)
 
-        // 验证容器尺寸的合理性
         guard containerSize.width > 0 else {
             return .zero
         }
 
-        // 更新缓存
         updateCache(&cache, subviews: subviews)
-
-        // 使用布局引擎计算
         let result = performLayoutCalculation(containerSize: containerSize, subviews: subviews, cache: &cache)
 
         return result.totalSize
@@ -181,16 +174,11 @@ public struct MasonryLayout: Layout, Sendable {
     public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) {
         let containerSize = bounds.size
 
-        // 验证容器尺寸的合理性
         guard containerSize.width > 0 else {
             return
         }
 
-        // 注意：不需要再次调用 updateCache，因为 performLayoutCalculation 会处理缓存
-        // 使用布局引擎计算
         let result = performLayoutCalculation(containerSize: containerSize, subviews: subviews, cache: &cache)
-
-        // 放置子视图
         for (index, subview) in subviews.enumerated() {
             guard index < result.itemFrames.count else { continue }
 

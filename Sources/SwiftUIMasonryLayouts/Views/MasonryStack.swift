@@ -30,9 +30,7 @@ public struct MasonryStack<Content: View>: View {
     
     // MARK: - 状态管理
     
-    /// 当前使用的配置（仅用于响应式模式）
     @State private var currentConfiguration: MasonryConfiguration?
-    /// 防抖任务，避免频繁更新
     @State private var debounceTask: Task<Void, Never>?
     
     // MARK: - 初始化方法
@@ -101,7 +99,6 @@ public struct MasonryStack<Content: View>: View {
     public var body: some View {
         Group {
             if let breakpoints = breakpoints {
-                // 响应式模式
                 ResponsiveMasonryLayout(
                     breakpoints: breakpoints,
                     currentConfiguration: $currentConfiguration,
@@ -109,7 +106,6 @@ public struct MasonryStack<Content: View>: View {
                     content: content
                 )
             } else {
-                // 静态模式
                 MasonryLayout(
                     axis: axis,
                     lines: lines,
