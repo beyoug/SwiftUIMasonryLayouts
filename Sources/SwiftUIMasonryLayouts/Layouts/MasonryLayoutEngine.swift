@@ -8,7 +8,7 @@ import SwiftUI
 
 /// 瀑布流布局的核心计算引擎
 /// 专注于布局算法的实现，不涉及视图渲染
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 internal struct MasonryLayoutEngine {
     
     // MARK: - 核心布局计算
@@ -24,9 +24,10 @@ internal struct MasonryLayoutEngine {
         subviews: LayoutSubviews,
         parameters: LayoutParameters
     ) -> LayoutResult {
-        let lineCount = parameters.calculateLineCount()
-        let lineSize = parameters.calculateLineSize(lineCount: lineCount)
-        
+        // 🚀 优化：直接使用预计算的值
+        let lineCount = parameters.lineCount
+        let lineSize = parameters.lineSize
+
         var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
         var itemFrames: [CGRect] = []
 
@@ -65,10 +66,12 @@ internal struct MasonryLayoutEngine {
             )
         }
         
-        let totalSize = parameters.calculateTotalSize(
+        // 🚀 优化：直接计算总尺寸，避免方法调用开销
+        let totalSize = calculateTotalSize(
             lineOffsets: lineOffsets,
             lineSize: lineSize,
-            lineCount: lineCount
+            lineCount: lineCount,
+            parameters: parameters
         )
         
         return LayoutResult(
@@ -112,9 +115,10 @@ internal struct MasonryLayoutEngine {
             vSpacing: configuration.vSpacing,
             placement: configuration.placement
         )
-        
-        let lineCount = parameters.calculateLineCount()
-        let lineSize = parameters.calculateLineSize(lineCount: lineCount)
+
+        // 🚀 优化：直接使用预计算的值
+        let lineCount = parameters.lineCount
+        let lineSize = parameters.lineSize
 
         
         var itemFrames: [CGRect] = []
@@ -151,10 +155,12 @@ internal struct MasonryLayoutEngine {
             )
         }
         
-        let totalSize = parameters.calculateTotalSize(
+        // 🚀 优化：直接计算总尺寸，避免方法调用开销
+        let totalSize = calculateTotalSize(
             lineOffsets: lineOffsets,
             lineSize: lineSize,
-            lineCount: lineCount
+            lineCount: lineCount,
+            parameters: parameters
         )
         
         return LazyLayoutResult(
@@ -166,7 +172,36 @@ internal struct MasonryLayoutEngine {
     }
     
     // MARK: - 辅助方法
-    
+
+    /// 计算总尺寸（优化版本，避免方法调用开销）
+    private static func calculateTotalSize(
+        lineOffsets: [CGFloat],
+        lineSize: CGFloat,
+        lineCount: Int,
+        parameters: LayoutParameters
+    ) -> CGSize {
+        // 确保参数有效性
+        guard lineCount > 0, lineSize >= 0 else {
+            return .zero
+        }
+
+        let maxOffset = lineOffsets.max() ?? 0
+        let safeLineCount = max(1, lineCount)
+        let safeLineSize = max(0, lineSize)
+
+        if parameters.axis == .vertical {
+            // 垂直布局：宽度由列数决定，高度由内容决定
+            let totalWidth = CGFloat(safeLineCount) * safeLineSize + CGFloat(max(0, safeLineCount - 1)) * parameters.hSpacing
+            let totalHeight = maxOffset > 0 ? max(0, maxOffset - parameters.vSpacing) : 0
+            return CGSize(width: totalWidth, height: totalHeight)
+        } else {
+            // 水平布局：高度由行数决定，宽度由内容决定
+            let totalHeight = CGFloat(safeLineCount) * safeLineSize + CGFloat(max(0, safeLineCount - 1)) * parameters.vSpacing
+            let totalWidth = maxOffset > 0 ? max(0, maxOffset - parameters.hSpacing) : 0
+            return CGSize(width: totalWidth, height: totalHeight)
+        }
+    }
+
     /// 计算项目框架
     private static func calculateItemFrame(
         itemSize: CGSize,
@@ -326,7 +361,7 @@ internal struct MasonryLayoutEngine {
 // MARK: - 布局缓存系统
 
 /// 瀑布流布局缓存
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public struct LayoutCache {
     /// 缓存的布局结果
     var cachedResult: LayoutResult?
@@ -338,10 +373,14 @@ public struct LayoutCache {
     var subviewCount: Int = 0
     /// 上次计算时间
     var lastCalculationTime: TimeInterval = 0
+
+    // 🚀 优化：仅在DEBUG模式下统计缓存性能
+    #if DEBUG
     /// 缓存命中次数
     private var cacheHits: Int = 0
     /// 缓存未命中次数
     private var cacheMisses: Int = 0
+    #endif
 
     /// 清除缓存
     mutating func invalidate() {
@@ -359,33 +398,51 @@ public struct LayoutCache {
                abs(lastContainerSize.height - size.height) <= tolerance
     }
 
+    // 🚀 优化：仅在DEBUG模式下记录缓存统计
     mutating func recordCacheHit() {
+        #if DEBUG
         cacheHits += 1
+        #endif
     }
 
     mutating func recordCacheMiss() {
+        #if DEBUG
         cacheMisses += 1
+        #endif
     }
 
     /// 获取缓存命中率
     var cacheHitRate: Double {
+        #if DEBUG
         let total = cacheHits + cacheMisses
         return total > 0 ? Double(cacheHits) / Double(total) : 0
+        #else
+        return 0
+        #endif
     }
 
     /// 获取缓存统计信息
     var statistics: CacheStatistics {
+        #if DEBUG
         CacheStatistics(
             hits: cacheHits,
             misses: cacheMisses,
             hitRate: cacheHitRate,
             lastCalculationTime: lastCalculationTime
         )
+        #else
+        CacheStatistics(
+            hits: 0,
+            misses: 0,
+            hitRate: 0,
+            lastCalculationTime: lastCalculationTime
+        )
+        #endif
     }
 }
 
 /// 缓存统计信息
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public struct CacheStatistics {
     /// 缓存命中次数
     public let hits: Int
@@ -401,7 +458,7 @@ public struct CacheStatistics {
 }
 
 /// 专门为懒加载场景优化的布局缓存
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 internal struct LazyLayoutCache {
     private var itemSizes: [AnyHashable: CGSize] = [:]
     private var layoutResults: [String: LazyLayoutResult] = [:]
@@ -418,15 +475,13 @@ internal struct LazyLayoutCache {
         itemSizes[AnyHashable(id)] = size
     }
 
-    /// 智能清理旧缓存
+    /// 🚀 优化：简化缓存清理算法
     private mutating func cleanupOldCache() {
-        let targetSize = maxItemSizeCache * 3 / 4 // 保留75%的缓存
-        let removeCount = itemSizes.count - targetSize
+        let targetSize = maxItemSizeCache / 2 // 简化：直接清理一半
+        guard itemSizes.count > targetSize else { return }
 
-        guard removeCount > 0 else { return }
-
-        // 随机移除一部分缓存，避免总是移除相同的项目
-        let keysToRemove = Array(itemSizes.keys.shuffled().prefix(removeCount))
+        // 简化：直接移除前一半的键（基于字典的内部顺序）
+        let keysToRemove = Array(itemSizes.keys.prefix(itemSizes.count - targetSize))
         for key in keysToRemove {
             itemSizes.removeValue(forKey: key)
         }
@@ -478,7 +533,7 @@ internal struct LazyLayoutCache {
 // MARK: - 缓存管理器
 
 /// 布局缓存管理器
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 internal struct CacheManager {
 
     /// 生成配置哈希值
@@ -524,7 +579,7 @@ internal struct CacheManager {
 
 // MARK: - 内部扩展
 
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 internal extension CGSize {
     /// 检查尺寸是否有效
     var isValid: Bool {
@@ -537,7 +592,7 @@ internal extension CGSize {
     }
 }
 
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 internal extension CGFloat {
     /// 检查数值是否有效
     var isValid: Bool {
@@ -550,7 +605,7 @@ internal extension CGFloat {
     }
 }
 
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 internal extension Array where Element == CGFloat {
     /// 安全地获取最小值索引
     var safeMinIndex: Int? {

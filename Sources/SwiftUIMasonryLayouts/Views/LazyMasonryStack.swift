@@ -8,7 +8,7 @@ import SwiftUI
 
 /// 懒加载瀑布流：高效的瀑布流布局组件
 /// 🎯 核心功能：瀑布流布局 + 滚动事件检测
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Content: View>: View where Data.Element: Identifiable, Data.Element.ID == ID {
     
     // MARK: - 核心属性
@@ -25,6 +25,10 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     @State private var contentHeight: CGFloat = 0
     @State private var viewportHeight: CGFloat = 0
     @State private var lastBottomTriggerTime: TimeInterval = 0
+
+    // 🚀 优化：添加防抖和性能优化状态
+    @State private var isUpdatingLayout = false
+    @State private var pendingDataCount = 0
 
     // MARK: - 回调
 
@@ -117,75 +121,108 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     public var body: some View {
         GeometryReader { geometry in
             ScrollView(configuration.axis == .vertical ? .vertical : .horizontal) {
-                MasonryLayout(
-                    axis: configuration.axis,
-                    lines: configuration.lines,
-                    hSpacing: configuration.hSpacing,
-                    vSpacing: configuration.vSpacing,
-                    placement: configuration.placement
-                ) {
-                    ForEach(visibleItems, id: \.id) { item in
-                        content(item)
-                            .fixedSize(
-                                horizontal: configuration.axis == .horizontal,
-                                vertical: configuration.axis == .vertical
-                            )
+                // 🚀 优化：使用LazyVStack/LazyHStack减少布局计算开销
+                if configuration.axis == .vertical {
+                    LazyVStack(spacing: configuration.vSpacing) {
+                        masonryContent
                     }
-
-
+                } else {
+                    LazyHStack(spacing: configuration.hSpacing) {
+                        masonryContent
+                    }
                 }
-                .background(
-                    GeometryReader { contentGeometry in
-                        Color.clear
-                            .onAppear {
-                                contentHeight = configuration.axis == .vertical
-                                    ? contentGeometry.size.height
-                                    : contentGeometry.size.width
-                            }
-                            .onChange(of: contentGeometry.size) { _, newSize in
-                                contentHeight = configuration.axis == .vertical
-                                    ? newSize.height
-                                    : newSize.width
-                            }
-                    }
-                )
             }
             .onAppear {
-                if configuration.axis == .vertical {
-                    viewportHeight = geometry.size.height
-                } else {
-                    viewportHeight = geometry.size.width
-                }
+                setupViewport(geometry: geometry)
             }
             .onChange(of: geometry.size) { _, newSize in
-                if configuration.axis == .vertical {
-                    viewportHeight = newSize.height
-                } else {
-                    viewportHeight = newSize.width
-                }
+                updateViewport(newSize: newSize)
             }
             .onScrollGeometryChange(for: CGFloat.self) { scrollGeometry in
                 return configuration.axis == .vertical
                     ? scrollGeometry.contentOffset.y
                     : scrollGeometry.contentOffset.x
             } action: { oldValue, newValue in
-                handleScrollChange(newValue)
+                // 🚀 优化：防抖滚动处理
+                handleScrollChangeWithDebounce(newValue)
             }
-
         }
+    }
+
+    // 🚀 优化：提取瀑布流内容为计算属性，减少重建
+    private var masonryContent: some View {
+        MasonryLayout(
+            axis: configuration.axis,
+            lines: configuration.lines,
+            hSpacing: configuration.hSpacing,
+            vSpacing: configuration.vSpacing,
+            placement: configuration.placement
+        ) {
+            ForEach(visibleItems, id: \.id) { item in
+                content(item)
+                    .fixedSize(
+                        horizontal: configuration.axis == .horizontal,
+                        vertical: configuration.axis == .vertical
+                    )
+            }
+        }
+        .background(
+            GeometryReader { contentGeometry in
+                Color.clear
+                    .onAppear {
+                        updateContentHeight(contentGeometry.size)
+                    }
+                    .onChange(of: contentGeometry.size) { _, newSize in
+                        updateContentHeight(newSize)
+                    }
+            }
+        )
     }
     
     // MARK: - 私有方法
 
-    /// 处理滚动变化
-    private func handleScrollChange(_ newOffset: CGFloat) {
+    /// 🚀 优化：设置视口尺寸
+    private func setupViewport(geometry: GeometryProxy) {
+        if configuration.axis == .vertical {
+            viewportHeight = geometry.size.height
+        } else {
+            viewportHeight = geometry.size.width
+        }
+    }
+
+    /// 🚀 优化：更新视口尺寸
+    private func updateViewport(newSize: CGSize) {
+        if configuration.axis == .vertical {
+            viewportHeight = newSize.height
+        } else {
+            viewportHeight = newSize.width
+        }
+    }
+
+    /// 🚀 优化：更新内容高度
+    private func updateContentHeight(_ size: CGSize) {
+        let newHeight = configuration.axis == .vertical ? size.height : size.width
+
+        // 只有显著变化时才更新，避免频繁重绘
+        if abs(newHeight - contentHeight) > 1.0 {
+            contentHeight = newHeight
+        }
+    }
+
+    /// 🚀 优化：防抖滚动处理
+    private func handleScrollChangeWithDebounce(_ newOffset: CGFloat) {
         scrollOffset = newOffset
-        checkScrollTriggers()
+
+        // 使用防抖避免过于频繁的触发检查
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            self.checkScrollTriggers()
+        }
     }
 
     /// 检查滚动触发条件
     private func checkScrollTriggers() {
         guard contentHeight > 0 && viewportHeight > 0 else { return }
+        guard !isUpdatingLayout else { return } // 🚀 优化：避免在布局更新时触发
 
         let scrollProgress = max(0, scrollOffset) / max(contentHeight - viewportHeight, 1)
 
@@ -196,7 +233,14 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
             if timeSinceLastTrigger >= configuration.debounceInterval {
                 lastBottomTriggerTime = currentTime
+                isUpdatingLayout = true // 🚀 优化：标记正在更新
+
                 onReachBottom?()
+
+                // 🚀 优化：延迟重置更新标记
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.isUpdatingLayout = false
+                }
             }
         }
 
@@ -219,7 +263,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
 // MARK: - 链式配置方法
 
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public extension LazyMasonryStack {
 
     func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack {
@@ -245,7 +289,7 @@ public extension LazyMasonryStack {
 
 // MARK: - 便捷初始化方法
 
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public extension LazyMasonryStack {
 
     /// 创建列数配置的懒加载瀑布流

@@ -14,10 +14,10 @@ import SwiftUI
 /// 基于iOS 18.0+ Layout协议构建，提供最佳性能和原生SwiftUI集成。
 ///
 /// ## 系统要求
-/// - iOS 18.0+ / macOS 15.0+ / tvOS 18.0+ / watchOS 11.0+ / visionOS 2.0+
+/// - iOS 18.0+ / iPadOS 18.0+
 /// - Xcode 16.0+
 /// - Swift 6.0+
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public enum SwiftUIMasonryLayouts {
     /// 库版本号
     public static let version = "1.0.0"
@@ -26,9 +26,9 @@ public enum SwiftUIMasonryLayouts {
 // MARK: - 便捷类型别名
 
 /// 基础瀑布流视图的便捷别名
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public typealias Masonry = MasonryStack
 
 /// 懒加载瀑布流视图的便捷别名（推荐用于分页场景）
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 18.0, *)
 public typealias LazyMasonry = LazyMasonryStack

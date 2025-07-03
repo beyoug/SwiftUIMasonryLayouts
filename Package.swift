@@ -11,12 +11,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftUIMasonryLayouts",
     platforms: [
-        .iOS(.v18),
-        .macCatalyst(.v18),
-        .macOS(.v15),
-        .tvOS(.v18),
-        .watchOS(.v11),
-        .visionOS(.v2)
+        .iOS(.v18)
     ],
     products: [
         .library(
@@ -29,7 +24,7 @@ let package = Package(
             name: "SwiftUIMasonryLayouts",
             dependencies: [],
             resources: [
-                .process("Examples/TestData500.json")
+                .process("Examples/SampleData200.json")
             ],
             swiftSettings: [
                 // 只保留在 Swift 6 中仍然需要显式启用的功能

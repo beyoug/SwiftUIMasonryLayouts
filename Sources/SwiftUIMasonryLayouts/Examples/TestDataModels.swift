@@ -5,114 +5,149 @@
 import SwiftUI
 import Foundation
 
-/// 测试数据项模型
-struct TestDataItem: Identifiable, Hashable, Codable {
-    let id: Int
-    let title: String
-    let description: String
-    let category: String
-    let height: Int
-    let color: String
-    let tags: [String]
-    
-    /// 转换为SwiftUI颜色
-    var swiftUIColor: Color {
-        switch color.lowercased() {
-        case "red": return .red
-        case "blue": return .blue
-        case "green": return .green
-        case "yellow": return .yellow
-        case "orange": return .orange
-        case "purple": return .purple
-        case "pink": return .pink
-        case "brown": return .brown
-        case "gray": return .gray
-        case "white": return .white
-        case "black": return .black
-        case "cyan": return .cyan
-        case "magenta": return Color(red: 1, green: 0, blue: 1)
-        case "lime": return Color(red: 0, green: 1, blue: 0)
-        case "navy": return Color(red: 0, green: 0, blue: 0.5)
-        default: return .gray
+/// 示例数据项模型 - 用于演示瀑布流布局
+public struct SampleDataItem: Identifiable, Hashable, Codable {
+    public let id: Int
+    public let title: String
+    public let subtitle: String
+    public let type: String
+    public let imageUrl: String
+    public let metadata: [String]
+
+    /// 动态计算卡片高度（基于内容长度）
+    public var dynamicHeight: CGFloat {
+        let baseHeight: CGFloat = 200
+        let titleLength = CGFloat(title.count)
+        let subtitleLength = CGFloat(subtitle.count)
+        let metadataHeight = CGFloat(metadata.count * 25)
+
+        // 根据内容长度动态调整高度
+        let contentHeight = titleLength * 2 + subtitleLength * 0.8 + metadataHeight
+        return baseHeight + min(contentHeight, 150) // 限制最大额外高度
+    }
+
+    /// 根据类型获取主题色
+    public var themeColor: Color {
+        switch type {
+        case "风景": return Color.green
+        case "建筑": return Color.blue
+        case "美食": return Color.orange
+        case "动物": return Color.brown
+        case "户外": return Color.teal
+        case "植物": return Color.mint
+        case "艺术": return Color.purple
+        case "科技": return Color.indigo
+        default: return Color.gray
         }
     }
-    
-    /// 获取CGFloat高度
-    var cgHeight: CGFloat {
-        return CGFloat(height)
+
+    /// 获取类型图标
+    public var typeIcon: String {
+        switch type {
+        case "风景": return "mountain.2.fill"
+        case "建筑": return "building.2.fill"
+        case "美食": return "fork.knife"
+        case "动物": return "pawprint.fill"
+        case "户外": return "figure.hiking"
+        case "植物": return "leaf.fill"
+        case "艺术": return "paintbrush.fill"
+        case "科技": return "laptopcomputer"
+        default: return "square.fill"
+        }
+    }
+
+    /// 公共初始化方法
+    public init(id: Int, title: String, subtitle: String, type: String, imageUrl: String, metadata: [String]) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.type = type
+        self.imageUrl = imageUrl
+        self.metadata = metadata
     }
 }
 
-/// 分页响应模型
-struct PaginatedResponse<T: Codable>: Codable {
-    let data: [T]
-    let currentPage: Int
-    let totalPages: Int
-    let totalItems: Int
-    let pageSize: Int
-    let hasNextPage: Bool
-    let hasPreviousPage: Bool
+/// 分页响应模型 - 通用分页数据结构
+public struct PaginatedResponse<T: Codable>: Codable {
+    public let data: [T]
+    public let currentPage: Int
+    public let totalPages: Int
+    public let totalItems: Int
+    public let pageSize: Int
+    public let hasNextPage: Bool
+    public let hasPreviousPage: Bool
+
+    public init(data: [T], currentPage: Int, totalPages: Int, totalItems: Int, pageSize: Int, hasNextPage: Bool, hasPreviousPage: Bool) {
+        self.data = data
+        self.currentPage = currentPage
+        self.totalPages = totalPages
+        self.totalItems = totalItems
+        self.pageSize = pageSize
+        self.hasNextPage = hasNextPage
+        self.hasPreviousPage = hasPreviousPage
+    }
 }
 
-/// 测试数据加载器
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+/// 示例数据加载器 - 用于演示分页加载功能
+@available(iOS 18.0, *)
 @MainActor
-class TestDataLoader: ObservableObject {
+public class SampleDataLoader: ObservableObject {
 
     // 🎯 单例模式，防止重复创建
-    static let shared = TestDataLoader(pageSize: 10)
+    public static let shared = SampleDataLoader(pageSize: 10)
 
-    private static var _instances: [Int: TestDataLoader] = [:]
+    private static var _instances: [Int: SampleDataLoader] = [:]
 
-    static func getInstance(pageSize: Int = 10) -> TestDataLoader {
+    /// 获取指定页面大小的实例
+    public static func getInstance(pageSize: Int = 10) -> SampleDataLoader {
         // 使用pageSize作为key，确保不同pageSize有不同的实例
         if let existing = _instances[pageSize] {
-            MasonryLogger.debug("复用现有 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
+            MasonryLogger.debug("复用现有 SampleDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(existing)), 当前项目数: \(existing.items.count)")
             return existing
         } else {
-            let newInstance = TestDataLoader(pageSize: pageSize)
+            let newInstance = SampleDataLoader(pageSize: pageSize)
             _instances[pageSize] = newInstance
-            MasonryLogger.debug("创建新的 TestDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(newInstance))")
+            MasonryLogger.debug("创建新的 SampleDataLoader 实例 (pageSize: \(pageSize)): \(ObjectIdentifier(newInstance))")
             return newInstance
         }
     }
 
     /// 重置所有实例（用于调试）
-    static func resetAllInstances() {
-        MasonryLogger.debug("重置所有 TestDataLoader 实例")
+    public static func resetAllInstances() {
+        MasonryLogger.debug("重置所有 SampleDataLoader 实例")
         _instances.removeAll()
     }
     
     // MARK: - 属性
     
-    @Published var items: [TestDataItem] = []
-    @Published var isLoading = false
-    @Published var currentPage = 0
-    @Published var totalPages = 0
-    @Published var totalItems = 0
-    @Published var hasNextPage = false
-    @Published var error: String?
-    
+    @Published public var items: [SampleDataItem] = []
+    @Published public var isLoading = false
+    @Published public var currentPage = 0
+    @Published public var totalPages = 0
+    @Published public var totalItems = 0
+    @Published public var hasNextPage = false
+    @Published public var error: String?
+
     private let pageSize: Int
-    private var allData: [TestDataItem] = []
+    private var allData: [SampleDataItem] = []
     
     // MARK: - 初始化
     
-    init(pageSize: Int = 20) {
+    public init(pageSize: Int = 20) {
         self.pageSize = pageSize
-        MasonryLogger.debug("TestDataLoader 初始化 - pageSize: \(pageSize), 实例ID: \(ObjectIdentifier(self))")
+        MasonryLogger.debug("SampleDataLoader 初始化 - pageSize: \(pageSize), 实例ID: \(ObjectIdentifier(self))")
         loadAllData()
     }
     
     // MARK: - 数据加载
     
-    /// 加载所有测试数据
+    /// 加载所有示例数据
     private func loadAllData() {
-        // 尝试从Bundle中加载测试数据文件
-        if let url = Bundle.module.url(forResource: "TestData500", withExtension: "json") {
+        // 尝试从Bundle中加载示例数据文件
+        if let url = Bundle.module.url(forResource: "SampleData200", withExtension: "json") {
             do {
                 let data = try Data(contentsOf: url)
-                allData = try JSONDecoder().decode([TestDataItem].self, from: data)
+                allData = try JSONDecoder().decode([SampleDataItem].self, from: data)
                 totalItems = allData.count
                 totalPages = (totalItems + pageSize - 1) / pageSize
                 MasonryLogger.info("从JSON加载数据成功 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
@@ -128,23 +163,18 @@ class TestDataLoader: ObservableObject {
 
     /// 生成示例数据（当无法加载JSON文件时使用）
     private func generateSampleData() {
-        let categories = ["风景", "建筑", "动物", "美食", "户外", "植物", "艺术", "科技"]
-        let colors = ["red", "blue", "green", "yellow", "orange", "purple", "pink", "brown"]
+        let types = ["风景", "建筑", "美食", "动物", "户外", "植物", "艺术", "科技"]
 
-        allData = (1...500).map { id in
-            let category = categories[id % categories.count]
-            let color = colors[id % colors.count]
-            let seed = abs(id.hashValue)
-            let height = 80 + (seed % 171)
+        allData = (1...200).map { id in
+            let type = types[id % types.count]
 
-            return TestDataItem(
+            return SampleDataItem(
                 id: id,
-                title: "\(category)项目 \(id)",
-                description: "这是第\(id)个\(category)项目的描述",
-                category: category,
-                height: height,
-                color: color,
-                tags: ["标签1", "标签2", "标签3"]
+                title: "示例项目 \(id)",
+                subtitle: "这是第\(id)个示例项目的描述内容，用于演示瀑布流布局效果。",
+                type: type,
+                imageUrl: "https://picsum.photos/300/\(180 + (id % 120))?random=\(id)",
+                metadata: ["标签1", "标签2", "标签3"]
             )
         }
 
@@ -154,14 +184,14 @@ class TestDataLoader: ObservableObject {
     }
     
     /// 加载第一页数据
-    func loadInitialData() {
+    public func loadInitialData() {
         currentPage = 0
         items.removeAll()
         loadPage(0)
     }
-    
+
     /// 加载下一页数据
-    func loadNextPage() {
+    public func loadNextPage() {
         guard hasNextPage && !isLoading else { return }
         loadPage(currentPage + 1)
     }
@@ -173,20 +203,28 @@ class TestDataLoader: ObservableObject {
         isLoading = true
         error = nil
 
-        // 模拟网络延迟
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // 🚀 优化：使用Task处理异步数据，避免并发问题
+        Task { @MainActor in
+            // 模拟网络延迟
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+
             let startIndex = page * self.pageSize
             let endIndex = min(startIndex + self.pageSize, self.allData.count)
-
             let pageData = Array(self.allData[startIndex..<endIndex])
 
-            if page == 0 {
-                // 第一页：替换所有数据
-                self.items = pageData
-            } else {
-                // 后续页：追加数据
-                self.items.append(contentsOf: pageData)
+            // 🚀 优化：使用动画来平滑数据更新
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if page == 0 {
+                    // 第一页：替换所有数据
+                    self.items = pageData
+                } else {
+                    // 后续页：追加数据
+                    self.items.append(contentsOf: pageData)
+                }
             }
+
+            // 🚀 优化：延迟更新状态，避免与动画冲突
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
             self.currentPage = page
             self.hasNextPage = page < self.totalPages - 1
@@ -197,12 +235,12 @@ class TestDataLoader: ObservableObject {
     }
     
     /// 刷新数据（重新加载第一页）
-    func refresh() {
+    public func refresh() {
         loadInitialData()
     }
-    
+
     /// 搜索数据
-    func search(query: String) {
+    public func search(query: String) {
         guard !query.isEmpty else {
             loadInitialData()
             return
@@ -213,9 +251,9 @@ class TestDataLoader: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             let filteredData = self.allData.filter { item in
                 item.title.localizedCaseInsensitiveContains(query) ||
-                item.description.localizedCaseInsensitiveContains(query) ||
-                item.category.localizedCaseInsensitiveContains(query) ||
-                item.tags.contains { $0.localizedCaseInsensitiveContains(query) }
+                item.subtitle.localizedCaseInsensitiveContains(query) ||
+                item.type.localizedCaseInsensitiveContains(query) ||
+                item.metadata.contains { $0.localizedCaseInsensitiveContains(query) }
             }
             
             self.items = Array(filteredData.prefix(self.pageSize))
@@ -227,17 +265,17 @@ class TestDataLoader: ObservableObject {
         }
     }
     
-    /// 按分类筛选
-    func filterByCategory(_ category: String?) {
-        guard let category = category, !category.isEmpty else {
+    /// 按类型筛选
+    public func filterByType(_ type: String?) {
+        guard let type = type, !type.isEmpty else {
             loadInitialData()
             return
         }
-        
+
         isLoading = true
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let filteredData = self.allData.filter { $0.category == category }
+            let filteredData = self.allData.filter { $0.type == type }
             
             self.items = Array(filteredData.prefix(self.pageSize))
             self.currentPage = 0
@@ -248,9 +286,9 @@ class TestDataLoader: ObservableObject {
         }
     }
     
-    /// 获取所有分类
-    func getAllCategories() -> [String] {
-        return Array(Set(allData.map { $0.category })).sorted()
+    /// 获取所有类型
+    public func getAllTypes() -> [String] {
+        return Array(Set(allData.map { $0.type })).sorted()
     }
 }
 
