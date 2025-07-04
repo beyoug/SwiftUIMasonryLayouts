@@ -9,12 +9,11 @@
 
 ## 🎬 演示视频
 
-<video width="100%" controls>
-  <source src="Resources/Examples Screen Cap.mp4" type="video/mp4">
-  <p>您的浏览器不支持视频播放。请 <a href="https://github.com/beyoug/SwiftUIMasonryLayouts/raw/main/Resources/Examples%20Screen%20Cap.mp4">点击这里下载视频</a> 查看演示。</p>
-</video>
+> **📱 完整功能演示** - 点击下载查看垂直和水平瀑布流布局、懒加载、响应式设计等核心功能
 
-> 演示包含垂直和水平瀑布流布局、懒加载、响应式设计等核心功能
+[![演示视频](https://img.shields.io/badge/📱_演示视频-点击下载-blue?style=for-the-badge)](https://github.com/beyoug/SwiftUIMasonryLayouts/raw/main/Resources/Examples%20Screen%20Cap.mp4)
+
+*演示包含垂直和水平瀑布流布局、懒加载、响应式设计等核心功能*
 
 ## ✨ 核心特性
 
