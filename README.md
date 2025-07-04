@@ -7,14 +7,6 @@
 
 现代化的 SwiftUI 瀑布流布局库，专为 iOS 18.0+ 和 iPadOS 18.0+ 设计，基于最新 Layout 协议构建，提供高性能、灵活的瀑布流布局解决方案。
 
-## 🎬 演示视频
-
-> **📱 完整功能演示** - 点击下载查看垂直和水平瀑布流布局、懒加载、响应式设计等核心功能
-
-[![演示视频](https://img.shields.io/badge/📱_演示视频-点击下载-blue?style=for-the-badge)](https://github.com/beyoug/SwiftUIMasonryLayouts/raw/main/Resources/Examples%20Screen%20Cap.mp4)
-
-*演示包含垂直和水平瀑布流布局、懒加载、响应式设计等核心功能*
-
 ## ✨ 核心特性
 
 ### 🚀 高性能架构
