@@ -7,6 +7,15 @@
 
 现代化的 SwiftUI 瀑布流布局库，专为 iOS 18.0+ 和 iPadOS 18.0+ 设计，基于最新 Layout 协议构建，提供高性能、灵活的瀑布流布局解决方案。
 
+## 🎬 演示视频
+
+<video width="100%" controls>
+  <source src="Resources/Examples Screen Cap.mp4" type="video/mp4">
+  <p>您的浏览器不支持视频播放。请 <a href="https://github.com/beyoug/SwiftUIMasonryLayouts/raw/main/Resources/Examples%20Screen%20Cap.mp4">点击这里下载视频</a> 查看演示。</p>
+</video>
+
+> 演示包含垂直和水平瀑布流布局、懒加载、响应式设计等核心功能
+
 ## ✨ 核心特性
 
 ### 🚀 高性能架构
@@ -22,7 +31,6 @@
 ### 🔄 懒加载支持
 - **滚动触发** - 支持顶部和底部滚动触发事件
 - **防抖机制** - 内置防抖功能，避免频繁触发
-- **分页加载** - 完美支持分页数据加载场景
 
 ## 📋 系统要求
 
@@ -97,6 +105,32 @@ MasonryStack(
 }
 ```
 
+## 📱 示例预览
+
+### 使用 Examples 文件夹
+
+为了保持核心库的纯净性，`Examples` 文件夹默认位于项目根目录外部。如果您想要查看和运行示例代码：
+
+1. **查看示例代码**：Examples 文件夹包含完整的示例实现
+2. **运行示例预览**：将 `Examples` 文件夹移动到 `Sources/SwiftUIMasonryLayouts/` 目录下
+3. **在 Xcode 中预览**：移动后即可在 Xcode 中查看 SwiftUI 预览
+
+```bash
+# 移动 Examples 到源码目录以启用预览
+mv Examples Sources/SwiftUIMasonryLayouts/
+
+# 在 Xcode 中打开项目并查看预览
+open Package.swift
+```
+
+> **注意**：Examples 文件夹包含测试数据和示例视图，仅用于演示目的。在生产环境中使用时，建议将其保持在源码目录外部。
+
+### 示例内容
+
+- **LazyMasonryExample.swift** - 完整的瀑布流示例，包含垂直和水平布局
+- **SampleTestData.swift** - 200条静态测试数据，用于演示各种布局场景
+- **TestDataModels.swift** - 数据管理器，支持不同类型的测试数据加载
+
 ## 📚 核心组件
 
 ### MasonryStack
@@ -113,17 +147,41 @@ MasonryStack(
 详细的 API 文档请查看：
 - [API 参考文档](Documents/API-Reference.md)
 - [配置指南](Documents/Configuration-Guide.md)
-- [性能优化](Documents/Performance-Guide.md)
+
+## ⚠️ 重要提醒
+
+**本项目使用 AI 辅助开发**
+
+本项目在设计和编码过程中使用了 AI 技术（Claude Sonnet 4）进行辅助开发。虽然所有代码都经过了编译测试和功能验证，但可能存在以下情况：
+
+- 🔍 **测试覆盖不完整** - 某些边界情况可能未被充分测试
+- 🐛 **潜在的逻辑缺陷** - AI 生成的代码可能包含人类开发者容易忽略的问题
+- 📱 **设备兼容性** - 在不同设备和系统版本上的表现可能存在差异
+- ⚡ **性能优化空间** - 某些实现可能不是最优解决方案
+
+**我们强烈建议：**
+- 在生产环境使用前进行充分测试
+- 根据具体需求进行代码审查和优化
+- 报告发现的任何问题或改进建议
 
 ## 🤝 贡献
 
-我们欢迎社区贡献！
+我们热烈欢迎社区贡献！您的参与对于提升项目质量至关重要：
+
+### 如何贡献
+- 🐛 **报告问题** - 发现 bug 或不当行为请提交 Issue
+- 💡 **功能建议** - 提出新功能或改进建议
+- 🔧 **代码贡献** - 提交 Pull Request 修复问题或添加功能
+- 📖 **文档改进** - 完善文档和示例代码
+- 🧪 **测试补充** - 添加测试用例提高代码覆盖率
 
 ### 开发指南
 - 遵循 Swift 编码规范
 - 添加适当的文档注释
 - 编写单元测试
 - 确保 iOS 和 iPadOS 平台编译通过
+- 在 iPhone 16 Pro 模拟器上进行测试验证
+
 
 ## 📄 许可证
 
@@ -134,6 +192,7 @@ MasonryStack(
 - 感谢 Apple 提供的 SwiftUI Layout 协议
 - 感谢所有贡献者和用户的支持
 - 特别感谢 SwiftUI 社区的宝贵建议
+- 感谢 Anthropic 的 Claude Sonnet 4 模型在代码设计和实现中提供的 AI 辅助支持
 
 ## 📞 联系我们
 

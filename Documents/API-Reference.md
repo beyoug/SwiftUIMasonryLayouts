@@ -246,16 +246,16 @@ static let adaptiveColumns = adaptive(minColumnWidth: 120)
 /// 水平双行配置
 static let twoRows = rows(2)
 
-/// 早期触发配置（滚动到50%时触发）
+/// 早期触发配置（滚动到50%时触发，适合快速加载）
 static let earlyTrigger = MasonryConfiguration(bottomTriggerThreshold: 0.5)
 
-/// 延迟触发配置（滚动到90%时触发）
+/// 延迟触发配置（滚动到90%时触发，适合节省资源）
 static let lateTrigger = MasonryConfiguration(bottomTriggerThreshold: 0.9)
 
-/// 快速响应配置（0.5秒防抖）
+/// 快速响应配置（0.5秒防抖，适合实时场景）
 static let fastResponse = MasonryConfiguration(debounceInterval: 0.5)
 
-/// 慢速响应配置（2秒防抖）
+/// 慢速响应配置（2秒防抖，适合避免频繁请求）
 static let slowResponse = MasonryConfiguration(debounceInterval: 2.0)
 ```
 
@@ -270,9 +270,6 @@ static func rows(_ count: Int, spacing: CGFloat = 8) -> MasonryConfiguration
 
 /// 创建自适应列配置
 static func adaptive(minColumnWidth: CGFloat, spacing: CGFloat = 8) -> MasonryConfiguration
-
-/// 创建自适应行配置
-static func adaptive(minRowHeight: CGFloat, spacing: CGFloat = 8) -> MasonryConfiguration
 ```
 
 ### MasonryLines
@@ -315,9 +312,9 @@ static func adaptive(maxSize: CGFloat) -> MasonryLines
 public enum MasonryPlacementMode: Sendable, Equatable, Hashable {
     /// 智能填充模式：自动选择最短的列进行填充
     case fill
-    
-    /// 顺序填充模式：按顺序填充每一列
-    case sequential
+
+    /// 顺序放置模式：按顺序填充每一列
+    case order
 }
 ```
 

@@ -23,9 +23,6 @@ let package = Package(
         .target(
             name: "SwiftUIMasonryLayouts",
             dependencies: [],
-            resources: [
-                .process("Examples/SampleData200.json")
-            ],
             swiftSettings: [
                 // 只保留在 Swift 6 中仍然需要显式启用的功能
                 .enableUpcomingFeature("StrictConcurrency"),

@@ -90,33 +90,18 @@ public struct LazyMasonryExample: View {
             }
             .onReachBottom {
                 verticalLoadCount += 1
-                let timestamp = DateFormatter.timeFormatter.string(from: Date())
-                MasonryLogger.info("[\(timestamp)] Vertical layout reached bottom trigger #\(verticalLoadCount)")
-                MasonryLogger.debug("State: hasNextPage=\(verticalDataLoader.hasNextPage), isLoading=\(verticalDataLoader.isLoading)")
-                MasonryLogger.debug("Page: \(verticalDataLoader.currentPage + 1)/\(verticalDataLoader.totalPages), Items: \(verticalDataLoader.items.count)/\(verticalDataLoader.totalItems)")
+                MasonryLogger.info("垂直布局触发底部加载 #\(verticalLoadCount)")
 
                 if verticalDataLoader.hasNextPage && !verticalDataLoader.isLoading {
-                    MasonryLogger.info("开始加载垂直布局第 \(verticalDataLoader.currentPage + 1) 页...")
+                    MasonryLogger.info("加载垂直布局第 \(verticalDataLoader.currentPage + 1) 页")
                     verticalDataLoader.loadNextPage()
-                } else {
-                    MasonryLogger.debug("跳过垂直布局加载")
-                    if !verticalDataLoader.hasNextPage {
-                        MasonryLogger.debug("原因: 已到达最后一页")
-                    }
-                    if verticalDataLoader.isLoading {
-                        MasonryLogger.debug("原因: 正在加载中")
-                    }
                 }
             }
         }
         .onAppear {
-            MasonryLogger.info("垂直布局瀑布流视图出现，开始初始化")
-            MasonryLogger.debug("当前数据状态: items=\(verticalDataLoader.items.count), isLoading=\(verticalDataLoader.isLoading)")
             if verticalDataLoader.items.isEmpty {
-                MasonryLogger.info("开始加载垂直布局初始数据...")
+                MasonryLogger.info("初始化垂直布局数据")
                 verticalDataLoader.loadInitialData()
-            } else {
-                MasonryLogger.debug("垂直布局数据已存在，跳过初始化")
             }
         }
         .onChange(of: verticalDataLoader.items.count) { oldCount, newCount in
@@ -134,47 +119,29 @@ public struct LazyMasonryExample: View {
 
             Divider()
 
-            // 🚀 水平懒加载瀑布流 - 滚动60%触发加载
+            // 🚀 水平懒加载瀑布流 - 2行图片展示布局
             LazyMasonryStack(
                 horizontalDataLoader.items,
-                rows: 3,
-                spacing: 12
+                rows: 2,
+                spacing: 16
             ) { item in
                 horizontalItemView(item)
             }
             .onReachBottom {
                 horizontalLoadCount += 1
-                let timestamp = DateFormatter.timeFormatter.string(from: Date())
-                MasonryLogger.info("[\(timestamp)] 水平布局滚动到底部触发 #\(horizontalLoadCount)")
-                MasonryLogger.debug("状态: hasNextPage=\(horizontalDataLoader.hasNextPage), isLoading=\(horizontalDataLoader.isLoading)")
-                MasonryLogger.debug("页面: \(horizontalDataLoader.currentPage + 1)/\(horizontalDataLoader.totalPages), 项目数: \(horizontalDataLoader.items.count)/\(horizontalDataLoader.totalItems)")
+                MasonryLogger.info("水平布局触发底部加载 #\(horizontalLoadCount)")
 
                 if horizontalDataLoader.hasNextPage && !horizontalDataLoader.isLoading {
-                    MasonryLogger.info("开始加载水平布局第 \(horizontalDataLoader.currentPage + 1) 页...")
+                    MasonryLogger.info("加载水平布局第 \(horizontalDataLoader.currentPage + 1) 页")
                     horizontalDataLoader.loadNextPage()
-                } else {
-                    MasonryLogger.debug("跳过水平布局加载")
-                    if !horizontalDataLoader.hasNextPage {
-                        MasonryLogger.debug("原因: 已到达最后一页")
-                    }
-                    if horizontalDataLoader.isLoading {
-                        MasonryLogger.debug("原因: 正在加载中")
-                    }
                 }
             }
         }
         .onAppear {
-            MasonryLogger.info("水平布局瀑布流视图出现，开始初始化")
-            MasonryLogger.debug("当前数据状态: items=\(horizontalDataLoader.items.count), isLoading=\(horizontalDataLoader.isLoading)")
             if horizontalDataLoader.items.isEmpty {
-                MasonryLogger.info("开始加载水平布局初始数据...")
+                MasonryLogger.info("初始化水平布局数据")
                 horizontalDataLoader.loadInitialData()
-            } else {
-                MasonryLogger.debug("水平布局数据已存在，跳过初始化")
             }
-        }
-        .onChange(of: horizontalDataLoader.items.count) { oldCount, newCount in
-            MasonryLogger.debug("水平布局数据加载完成: \(oldCount) → \(newCount) 项")
         }
         .padding()
     }
@@ -243,7 +210,7 @@ public struct LazyMasonryExample: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("有下一页: \(horizontalDataLoader.hasNextPage ? "是" : "否")")
                     Text("加载中: \(horizontalDataLoader.isLoading ? "是" : "否")")
-                    Text("轴向: 水平 (3行布局)")
+                    Text("轴向: 水平 (2行紧凑布局)")
                 }
             }
             .font(.caption)
@@ -261,7 +228,7 @@ public struct LazyMasonryExample: View {
 
                 Spacer()
 
-                Text("特性: 滚动60%触发加载")
+                Text("特性: 纯图片展示 + 内容浮动 + 极简设计")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -280,7 +247,7 @@ public struct LazyMasonryExample: View {
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(height: imageHeight)
+                    .frame(maxHeight: 280)
                     .clipped()
             } placeholder: {
                 Rectangle()
@@ -389,136 +356,93 @@ public struct LazyMasonryExample: View {
         )
     }
 
-    /// 水平布局精美卡片视图 - 紧凑型设计
+    /// 水平布局图片卡片视图 - 纯图片展示，内容描述浮动在图片上
     private func horizontalItemView(_ item: SampleDataItem) -> some View {
-        HStack(spacing: 12) {
-            // 左侧图片
-            AsyncImage(url: URL(string: item.imageUrl)) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipped()
-                    .cornerRadius(12)
-            } placeholder: {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(item.themeColor.opacity(0.3))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        VStack(spacing: 4) {
-                            Image(systemName: item.typeIcon)
-                                .font(.title2)
-                                .foregroundColor(item.themeColor)
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .tint(item.themeColor)
-                        }
-                    )
-            }
-            .overlay(
-                // ID标签
-                VStack {
-                    HStack {
-                        Text("\(item.id)")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(item.themeColor)
-                            .cornerRadius(6)
-                        Spacer()
-                    }
-                    Spacer()
-                }
-                .padding(4)
-            )
-
-            // 右侧内容
-            VStack(alignment: .leading, spacing: 6) {
-                // 类型和标题
-                HStack {
-                    HStack(spacing: 4) {
+        // 图片区域 - 内容描述浮动在图片上
+        AsyncImage(url: URL(string: item.imageUrl)) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: 200)
+                .clipped()
+                .cornerRadius(12)
+        } placeholder: {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(item.themeColor.opacity(0.2))
+                .frame(maxWidth: 200)
+                .aspectRatio(1.2, contentMode: .fit)
+                .overlay(
+                    VStack(spacing: 8) {
                         Image(systemName: item.typeIcon)
-                            .font(.caption)
+                            .font(.title)
                             .foregroundColor(item.themeColor)
-                        Text(item.type)
+                        ProgressView()
+                            .scaleEffect(0.9)
+                            .tint(item.themeColor)
+                        Text("加载中...")
                             .font(.caption)
-                            .fontWeight(.medium)
                             .foregroundColor(item.themeColor)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(item.themeColor.opacity(0.1))
-                    .cornerRadius(8)
+                )
+        }
+        .overlay(
+            // 浮动在图片上的内容描述
+            VStack {
+                // 顶部：ID标签
+                HStack {
+                    Text("\(item.id)")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(item.themeColor.opacity(0.9))
+                        .cornerRadius(6)
 
                     Spacer()
+
+                    // 类型标签
+                    HStack(spacing: 3) {
+                        Image(systemName: item.typeIcon)
+                            .font(.caption2)
+                        Text(item.type)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(6)
                 }
-
-                Text(item.title)
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                Text(item.subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
 
                 Spacer()
 
-                // 底部标签和互动
-                HStack {
-                    if !item.metadata.isEmpty {
-                        HStack(spacing: 4) {
-                            ForEach(item.metadata.prefix(2), id: \.self) { tag in
-                                Text(tag)
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(item.themeColor)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(item.themeColor.opacity(0.15))
-                                    .cornerRadius(6)
-                            }
-                        }
-                    }
-
-                    Spacer()
-
-                    HStack(spacing: 8) {
-                        HStack(spacing: 2) {
-                            Image(systemName: "heart.fill")
-                                .font(.caption2)
-                                .foregroundColor(.red)
-                            Text("\(item.id * 2 + 8)")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-
-                        HStack(spacing: 2) {
-                            Image(systemName: "eye.fill")
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                            Text("\(item.id * 5 + 20)")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                // 底部：内容描述浮动显示
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.subtitle)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .shadow(color: .black.opacity(0.8), radius: 1)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.75)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
             }
-        }
-        .padding(12)
-        .frame(height: 120)
-        .background(.background)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 3)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(item.themeColor.opacity(0.2), lineWidth: 1)
+            .padding(6)
         )
+
+        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
 }
 

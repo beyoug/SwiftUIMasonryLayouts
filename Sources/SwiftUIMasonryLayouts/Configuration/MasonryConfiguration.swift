@@ -139,7 +139,7 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         self.topTriggerThreshold = max(0, topTriggerThreshold)
         self.debounceInterval = max(0.1, debounceInterval)
 
-        #if DEBUG
+        // 参数验证和警告
         if hSpacing < 0 {
             MasonryLogger.warning("Validation: 水平间距不能为负数，已自动修正为0")
         }
@@ -155,7 +155,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         if debounceInterval < 0.1 {
             MasonryLogger.warning("Validation: 防抖间隔不能小于0.1秒，已自动修正")
         }
-        #endif
     }
 }
 
@@ -318,29 +317,23 @@ internal struct LayoutParameters {
         let spacing = axis == .vertical ? hSpacing : vSpacing
 
         guard availableSize > 0 else {
-            #if DEBUG
             MasonryLogger.warning("Container: 容器尺寸无效 (availableSize: \(availableSize))，使用默认单列布局")
-            #endif
             return 1
         }
 
         switch lines {
         case .fixed(let count):
             let validCount = max(1, count)
-            #if DEBUG
             if count <= 0 {
                 MasonryLogger.warning("Validation: 固定列数无效 (\(count))，已修正为 \(validCount)")
             }
-            #endif
             return validCount
 
         case .adaptive(let constraint):
             switch constraint {
             case .min(let minSize):
                 guard minSize > 0 else {
-                    #if DEBUG
                     MasonryLogger.warning("Validation: 最小尺寸无效 (\(minSize))，使用默认单列布局")
-                    #endif
                     return 1
                 }
                 // 🚀 优化：简化自适应计算公式
@@ -351,9 +344,7 @@ internal struct LayoutParameters {
 
             case .max(let maxSize):
                 guard maxSize > 0 else {
-                    #if DEBUG
                     MasonryLogger.warning("Validation: 最大尺寸无效 (\(maxSize))，使用默认单列布局")
-                    #endif
                     return 1
                 }
                 // 🚀 优化：简化最大尺寸计算
@@ -454,11 +445,9 @@ internal enum MasonryInternal {
         let validWidth = max(0, size.width.isFinite ? size.width : 0)
         let validHeight = max(0, size.height.isFinite ? size.height : 0)
 
-        #if DEBUG
         if size.width != validWidth || size.height != validHeight {
             MasonryLogger.warning("Validation: 尺寸验证修正 \(context): \(size) -> \(CGSize(width: validWidth, height: validHeight))")
         }
-        #endif
 
         return CGSize(width: validWidth, height: validHeight)
     }
@@ -466,34 +455,41 @@ internal enum MasonryInternal {
 
 // MARK: - 简化日志系统
 
-/// 简化的日志工具
+/// 统一的日志工具
 @available(iOS 18.0, *)
 internal enum MasonryLogger {
-    /// 调试信息
+    /// 日志级别
+    enum Level: String {
+        case debug = "🔵"
+        case info = "🟢"
+        case warning = "🟡"
+        case error = "🔴"
+    }
+
+    /// 统一的日志输出方法
+    private static func log(_ level: Level, _ message: String) {
+        #if DEBUG
+        print("\(level.rawValue) SwiftUIMasonryLayouts: \(message)")
+        #endif
+    }
+
+    /// 调试信息 - 详细的开发调试信息
     static func debug(_ message: String) {
-        #if DEBUG
-        print("🔵 SwiftUIMasonryLayouts: \(message)")
-        #endif
+        log(.debug, message)
     }
 
-    /// 一般信息
+    /// 一般信息 - 重要的运行时信息
     static func info(_ message: String) {
-        #if DEBUG
-        print("🟢 SwiftUIMasonryLayouts: \(message)")
-        #endif
+        log(.info, message)
     }
 
-    /// 警告信息
+    /// 警告信息 - 需要注意但不影响功能的问题
     static func warning(_ message: String) {
-        #if DEBUG
-        print("🟡 SwiftUIMasonryLayouts: \(message)")
-        #endif
+        log(.warning, message)
     }
 
-    /// 错误信息
+    /// 错误信息 - 严重问题或异常情况
     static func error(_ message: String) {
-        #if DEBUG
-        print("🔴 SwiftUIMasonryLayouts: \(message)")
-        #endif
+        log(.error, message)
     }
 }

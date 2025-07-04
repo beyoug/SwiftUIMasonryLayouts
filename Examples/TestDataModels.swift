@@ -6,7 +6,7 @@ import SwiftUI
 import Foundation
 
 /// 示例数据项模型 - 用于演示瀑布流布局
-public struct SampleDataItem: Identifiable, Hashable, Codable {
+public struct SampleDataItem: Identifiable, Hashable, Codable, Sendable {
     public let id: Int
     public let title: String
     public let subtitle: String
@@ -143,21 +143,17 @@ public class SampleDataLoader: ObservableObject {
     
     /// 加载所有示例数据
     private func loadAllData() {
-        // 尝试从Bundle中加载示例数据文件
-        if let url = Bundle.module.url(forResource: "SampleData200", withExtension: "json") {
-            do {
-                let data = try Data(contentsOf: url)
-                allData = try JSONDecoder().decode([SampleDataItem].self, from: data)
-                totalItems = allData.count
-                totalPages = (totalItems + pageSize - 1) / pageSize
-                MasonryLogger.info("从JSON加载数据成功 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
-                return
-            } catch {
-                MasonryLogger.warning("加载JSON文件失败: \(error)")
-            }
+        // 使用静态测试数据
+        allData = SampleTestData.getAllTestData()
+        if !allData.isEmpty {
+            totalItems = allData.count
+            totalPages = (totalItems + pageSize - 1) / pageSize
+            MasonryLogger.info("从静态测试数据加载成功 - totalItems: \(totalItems), pageSize: \(pageSize), totalPages: \(totalPages)")
+            return
         }
 
-        // 如果无法加载文件，生成一些示例数据
+        // 如果静态数据不可用，生成一些示例数据
+        MasonryLogger.warning("静态测试数据不可用，使用生成的示例数据")
         generateSampleData()
     }
 
@@ -289,6 +285,44 @@ public class SampleDataLoader: ObservableObject {
     /// 获取所有类型
     public func getAllTypes() -> [String] {
         return Array(Set(allData.map { $0.type })).sorted()
+    }
+
+    /// 使用边界测试数据（不同长度的subtitle）
+    public func loadBoundaryTestData() {
+        allData = SampleTestData.getAllTestData()
+        totalItems = allData.count
+        totalPages = (totalItems + pageSize - 1) / pageSize
+        loadInitialData()
+        MasonryLogger.info("加载边界测试数据 - totalItems: \(totalItems)")
+    }
+
+    /// 使用短文本测试数据
+    public func loadShortTextTestData() {
+        let testData = SampleTestData.getTestDataBySubtitleLength()
+        allData = testData.short
+        totalItems = allData.count
+        totalPages = (totalItems + pageSize - 1) / pageSize
+        loadInitialData()
+        MasonryLogger.info("加载短文本测试数据 - totalItems: \(totalItems)")
+    }
+
+    /// 使用长文本测试数据
+    public func loadLongTextTestData() {
+        let testData = SampleTestData.getTestDataBySubtitleLength()
+        allData = testData.long
+        totalItems = allData.count
+        totalPages = (totalItems + pageSize - 1) / pageSize
+        loadInitialData()
+        MasonryLogger.info("加载长文本测试数据 - totalItems: \(totalItems)")
+    }
+
+    /// 使用随机测试数据
+    public func loadRandomTestData(count: Int = 50) {
+        allData = SampleTestData.getRandomTestData(count: count)
+        totalItems = allData.count
+        totalPages = (totalItems + pageSize - 1) / pageSize
+        loadInitialData()
+        MasonryLogger.info("加载随机测试数据 - totalItems: \(totalItems)")
     }
 }
 
