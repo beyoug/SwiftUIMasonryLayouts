@@ -33,7 +33,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     // MARK: - 回调
 
     private let onReachBottom: (() -> Void)?
-    private let onReachTop: (() -> Void)?
     
     // MARK: - 初始化
     
@@ -46,7 +45,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     ///   - vSpacing: 垂直间距
     ///   - placement: 放置模式
     ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
     ///   - debounceInterval: 防抖间隔 (秒)
     ///   - content: 内容构建器
     public init(
@@ -57,7 +55,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         vSpacing: CGFloat = 8,
         placement: MasonryPlacementMode = .fill,
         bottomTriggerThreshold: CGFloat = 0.6,
-        topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
@@ -69,12 +66,10 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
             vSpacing: vSpacing,
             placement: placement,
             bottomTriggerThreshold: bottomTriggerThreshold,
-            topTriggerThreshold: topTriggerThreshold,
             debounceInterval: debounceInterval
         )
         self.content = content
         self.onReachBottom = nil
-        self.onReachTop = nil
     }
     
     /// 创建懒加载瀑布流（使用配置对象）
@@ -91,7 +86,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         self.configuration = configuration
         self.content = content
         self.onReachBottom = nil
-        self.onReachTop = nil
     }
 
     /// 内部初始化方法（支持回调配置）
@@ -99,14 +93,12 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         _ data: Data,
         configuration: MasonryConfiguration,
         @ViewBuilder content: @escaping (Data.Element) -> Content,
-        onReachBottom: (() -> Void)?,
-        onReachTop: (() -> Void)?
+        onReachBottom: (() -> Void)?
     ) {
         self.data = data
         self.configuration = configuration
         self.content = content
         self.onReachBottom = onReachBottom
-        self.onReachTop = onReachTop
     }
     
     // MARK: - 计算属性
@@ -244,10 +236,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
             }
         }
 
-        // 顶部触发检测
-        if scrollOffset <= configuration.topTriggerThreshold {
-            onReachTop?()
-        }
+
     }
 
 
@@ -271,18 +260,7 @@ public extension LazyMasonryStack {
             data,
             configuration: configuration,
             content: content,
-            onReachBottom: action,
-            onReachTop: onReachTop
-        )
-    }
-    
-    func onReachTop(_ action: @escaping () -> Void) -> LazyMasonryStack {
-        return LazyMasonryStack(
-            data,
-            configuration: configuration,
-            content: content,
-            onReachBottom: onReachBottom,
-            onReachTop: action
+            onReachBottom: action
         )
     }
 }
@@ -298,7 +276,6 @@ public extension LazyMasonryStack {
     ///   - columns: 列数
     ///   - spacing: 间距
     ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
     ///   - debounceInterval: 防抖间隔 (秒)
     ///   - content: 内容构建器
     init(
@@ -306,7 +283,6 @@ public extension LazyMasonryStack {
         columns: Int,
         spacing: CGFloat = 8,
         bottomTriggerThreshold: CGFloat = 0.6,
-        topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
@@ -318,7 +294,6 @@ public extension LazyMasonryStack {
             vSpacing: spacing,
             placement: .fill,
             bottomTriggerThreshold: bottomTriggerThreshold,
-            topTriggerThreshold: topTriggerThreshold,
             debounceInterval: debounceInterval,
             content: content
         )
@@ -330,7 +305,6 @@ public extension LazyMasonryStack {
     ///   - rows: 行数
     ///   - spacing: 间距
     ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
     ///   - debounceInterval: 防抖间隔 (秒)
     ///   - content: 内容构建器
     init(
@@ -338,7 +312,6 @@ public extension LazyMasonryStack {
         rows: Int,
         spacing: CGFloat = 8,
         bottomTriggerThreshold: CGFloat = 0.6,
-        topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
@@ -350,7 +323,6 @@ public extension LazyMasonryStack {
             vSpacing: spacing,
             placement: .fill,
             bottomTriggerThreshold: bottomTriggerThreshold,
-            topTriggerThreshold: topTriggerThreshold,
             debounceInterval: debounceInterval,
             content: content
         )
@@ -362,7 +334,6 @@ public extension LazyMasonryStack {
     ///   - minColumnWidth: 最小列宽
     ///   - spacing: 间距
     ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
     ///   - debounceInterval: 防抖间隔 (秒)
     ///   - content: 内容构建器
     init(
@@ -370,7 +341,6 @@ public extension LazyMasonryStack {
         adaptiveColumns minColumnWidth: CGFloat,
         spacing: CGFloat = 8,
         bottomTriggerThreshold: CGFloat = 0.6,
-        topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
@@ -383,7 +353,6 @@ public extension LazyMasonryStack {
                 vSpacing: spacing,
                 placement: .fill,
                 bottomTriggerThreshold: bottomTriggerThreshold,
-                topTriggerThreshold: topTriggerThreshold,
                 debounceInterval: debounceInterval
             ),
             content: content
@@ -396,7 +365,6 @@ public extension LazyMasonryStack {
     ///   - minRowHeight: 最小行高
     ///   - spacing: 间距
     ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - topTriggerThreshold: 顶部触发阈值 (像素值)
     ///   - debounceInterval: 防抖间隔 (秒)
     ///   - content: 内容构建器
     init(
@@ -404,7 +372,6 @@ public extension LazyMasonryStack {
         adaptiveRows minRowHeight: CGFloat,
         spacing: CGFloat = 8,
         bottomTriggerThreshold: CGFloat = 0.6,
-        topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
@@ -417,7 +384,6 @@ public extension LazyMasonryStack {
                 vSpacing: spacing,
                 placement: .fill,
                 bottomTriggerThreshold: bottomTriggerThreshold,
-                topTriggerThreshold: topTriggerThreshold,
                 debounceInterval: debounceInterval
             ),
             content: content

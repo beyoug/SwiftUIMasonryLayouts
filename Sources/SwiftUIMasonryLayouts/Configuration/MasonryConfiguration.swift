@@ -103,8 +103,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
 
     /// 底部触发阈值 (0.0-1.0，表示滚动进度百分比)
     public let bottomTriggerThreshold: CGFloat
-    /// 顶部触发阈值 (像素值，表示距离顶部的像素距离)
-    public let topTriggerThreshold: CGFloat
     /// 防抖间隔 (秒，避免重复触发)
     public let debounceInterval: TimeInterval
 
@@ -118,7 +116,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     ///   - vSpacing: 垂直间距，默认为8
     ///   - placement: 放置模式，默认为智能填充
     ///   - bottomTriggerThreshold: 底部触发阈值，默认为0.6 (60%)
-    ///   - topTriggerThreshold: 顶部触发阈值，默认为0 (顶部)
     ///   - debounceInterval: 防抖间隔，默认为1.0秒
     public init(
         axis: Axis = .vertical,
@@ -127,7 +124,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         vSpacing: CGFloat = 8,
         placement: MasonryPlacementMode = .fill,
         bottomTriggerThreshold: CGFloat = 0.6,
-        topTriggerThreshold: CGFloat = 0,
         debounceInterval: TimeInterval = 1.0
     ) {
         self.axis = axis
@@ -136,7 +132,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         self.vSpacing = max(0, vSpacing)
         self.placement = placement
         self.bottomTriggerThreshold = max(0, min(1, bottomTriggerThreshold))
-        self.topTriggerThreshold = max(0, topTriggerThreshold)
         self.debounceInterval = max(0.1, debounceInterval)
 
         // 参数验证和警告
@@ -148,9 +143,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         }
         if bottomTriggerThreshold < 0 || bottomTriggerThreshold > 1 {
             MasonryLogger.warning("Validation: 底部触发阈值应在0-1之间，已自动修正")
-        }
-        if topTriggerThreshold < 0 {
-            MasonryLogger.warning("Validation: 顶部触发阈值不能为负数，已自动修正为0")
         }
         if debounceInterval < 0.1 {
             MasonryLogger.warning("Validation: 防抖间隔不能小于0.1秒，已自动修正")

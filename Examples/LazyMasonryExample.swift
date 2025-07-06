@@ -5,7 +5,10 @@
 import SwiftUI
 
 /// 瀑布流布局示例
-/// 🎯 展示懒加载瀑布流的分页加载功能（垂直和水平轴向）
+/// 🎯 展示懒加载瀑布流的完整滚动体验：
+/// - 垂直布局：下拉刷新 + 底部加载（使用系统refreshable + onReachBottom）
+/// - 水平布局：右滑加载更多（使用onReachBottom）
+/// - 双轴向布局演示
 @available(iOS 18.0, *)
 public struct LazyMasonryExample: View {
 
@@ -80,7 +83,7 @@ public struct LazyMasonryExample: View {
 
             Divider()
 
-            // 🚀 Vertical lazy masonry layout - triggers loading at 60% scroll
+            // 🚀 垂直懒加载瀑布流 - 支持下拉刷新和底部加载
             LazyMasonryStack(
                 verticalDataLoader.items,
                 columns: 2,
@@ -95,6 +98,16 @@ public struct LazyMasonryExample: View {
                 if verticalDataLoader.hasNextPage && !verticalDataLoader.isLoading {
                     MasonryLogger.info("加载垂直布局第 \(verticalDataLoader.currentPage + 1) 页")
                     verticalDataLoader.loadNextPage()
+                }
+            }
+            .refreshable {
+                MasonryLogger.info("垂直布局触发下拉刷新")
+                await withCheckedContinuation { continuation in
+                    verticalDataLoader.refresh()
+                    // 模拟网络延迟
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        continuation.resume()
+                    }
                 }
             }
         }
@@ -119,7 +132,7 @@ public struct LazyMasonryExample: View {
 
             Divider()
 
-            // 🚀 水平懒加载瀑布流 - 2行图片展示布局
+            // 🚀 水平懒加载瀑布流 - 支持右滑加载更多
             LazyMasonryStack(
                 horizontalDataLoader.items,
                 rows: 2,
@@ -129,7 +142,7 @@ public struct LazyMasonryExample: View {
             }
             .onReachBottom {
                 horizontalLoadCount += 1
-                MasonryLogger.info("水平布局触发底部加载 #\(horizontalLoadCount)")
+                MasonryLogger.info("水平布局触发右侧加载 #\(horizontalLoadCount)")
 
                 if horizontalDataLoader.hasNextPage && !horizontalDataLoader.isLoading {
                     MasonryLogger.info("加载水平布局第 \(horizontalDataLoader.currentPage + 1) 页")
@@ -183,7 +196,7 @@ public struct LazyMasonryExample: View {
 
                 Spacer()
 
-                Text("特性: 滚动60%触发加载")
+                Text("特性: 下拉刷新 + 底部加载")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -226,9 +239,14 @@ public struct LazyMasonryExample: View {
                     horizontalLoadCount = 0
                 }
 
+                Button("刷新") {
+                    MasonryLogger.info("手动刷新水平布局数据")
+                    horizontalDataLoader.refresh()
+                }
+
                 Spacer()
 
-                Text("特性: 纯图片展示 + 内容浮动 + 极简设计")
+                Text("特性: 右滑加载 + 图片浮动 + 紧凑布局")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

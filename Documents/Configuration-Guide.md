@@ -149,22 +149,6 @@ LazyMasonryStack(
 }
 ```
 
-#### 顶部触发阈值
-控制何时触发顶部回调，值为像素距离。
-
-```swift
-LazyMasonryStack(
-    items,
-    columns: 2,
-    topTriggerThreshold: 100  // 距离顶部100像素时触发
-) { item in
-    ItemView(item: item)
-}
-.onReachTop {
-    refreshData()
-}
-```
-
 ### 防抖配置
 避免频繁触发回调，设置防抖间隔。
 
@@ -257,7 +241,6 @@ let customConfig = MasonryConfiguration(
     vSpacing: 16,
     placement: .fill,
     bottomTriggerThreshold: 0.7,
-    topTriggerThreshold: 50,
     debounceInterval: 1.5
 )
 

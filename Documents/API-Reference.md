@@ -110,7 +110,6 @@ public init(
     vSpacing: CGFloat = 8,
     placement: MasonryPlacementMode = .fill,
     bottomTriggerThreshold: CGFloat = 0.6,
-    topTriggerThreshold: CGFloat = 0,
     debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
@@ -134,7 +133,6 @@ init(
     columns: Int,
     spacing: CGFloat = 8,
     bottomTriggerThreshold: CGFloat = 0.6,
-    topTriggerThreshold: CGFloat = 0,
     debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
@@ -147,7 +145,6 @@ init(
     rows: Int,
     spacing: CGFloat = 8,
     bottomTriggerThreshold: CGFloat = 0.6,
-    topTriggerThreshold: CGFloat = 0,
     debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
@@ -160,7 +157,6 @@ init(
     adaptiveColumns minColumnWidth: CGFloat,
     spacing: CGFloat = 8,
     bottomTriggerThreshold: CGFloat = 0.6,
-    topTriggerThreshold: CGFloat = 0,
     debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
@@ -173,7 +169,6 @@ init(
     adaptiveRows minRowHeight: CGFloat,
     spacing: CGFloat = 8,
     bottomTriggerThreshold: CGFloat = 0.6,
-    topTriggerThreshold: CGFloat = 0,
     debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
@@ -184,11 +179,6 @@ init(
 ##### 底部触发回调
 ```swift
 func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack
-```
-
-##### 顶部触发回调
-```swift
-func onReachTop(_ action: @escaping () -> Void) -> LazyMasonryStack
 ```
 
 ## 配置系统
@@ -213,8 +203,6 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
     public let placement: MasonryPlacementMode
     /// 底部触发阈值 (0.0-1.0，表示滚动进度百分比)
     public let bottomTriggerThreshold: CGFloat
-    /// 顶部触发阈值 (像素值，表示距离顶部的像素距离)
-    public let topTriggerThreshold: CGFloat
     /// 防抖间隔 (秒，避免重复触发)
     public let debounceInterval: TimeInterval
 }
@@ -229,7 +217,6 @@ public init(
     vSpacing: CGFloat = 8,
     placement: MasonryPlacementMode = .fill,
     bottomTriggerThreshold: CGFloat = 0.6,
-    topTriggerThreshold: CGFloat = 0,
     debounceInterval: TimeInterval = 1.0
 )
 ```
