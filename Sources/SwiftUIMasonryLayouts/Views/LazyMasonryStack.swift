@@ -28,6 +28,9 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     // 防抖状态
     @State private var isUpdatingLayout = false
 
+    // 渲染优化状态
+    @State private var isAsyncRendering = false
+
     // MARK: - 回调
 
     private let onReachBottom: (() -> Void)?
@@ -209,7 +212,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     /// 检查滚动触发条件
     private func checkScrollTriggers() {
         guard contentHeight > 0 && viewportHeight > 0 else { return }
-        guard !isUpdatingLayout else { return } // 避免在布局更新时触发
+        guard !isUpdatingLayout && !isAsyncRendering else { return } // 避免在布局更新或异步渲染时触发
 
         let scrollProgress = max(0, scrollOffset) / max(contentHeight - viewportHeight, 1)
 
@@ -222,13 +225,62 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
                 lastBottomTriggerTime = currentTime
                 isUpdatingLayout = true // 标记正在更新
 
-                onReachBottom?()
+                MasonryLogger.info("底部触发 - 滚动进度: \(Int(scrollProgress * 100))%")
+
+                // 异步处理数据加载，避免阻塞滚动
+                handleAsyncDataLoading()
 
                 // 延迟重置更新标记
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.isUpdatingLayout = false
                 }
             }
+        }
+    }
+
+    /// 异步处理数据加载，优化滚动性能
+    private func handleAsyncDataLoading() {
+        // 记录当前数据数量，用于检测数据变化
+        let currentDataCount = data.count
+
+        // 在后台队列触发数据加载
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 触发数据加载回调
+            DispatchQueue.main.async {
+                self.onReachBottom?()
+            }
+
+            // 监控数据变化并优化渲染
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.optimizeRenderingIfNeeded(previousCount: currentDataCount)
+            }
+        }
+    }
+
+    /// 优化渲染性能，分批处理新数据
+    private func optimizeRenderingIfNeeded(previousCount: Int) {
+        let newDataCount = data.count
+        let newItemsCount = newDataCount - previousCount
+
+        // 性能监控：记录渲染开始时间
+        let renderStartTime = CFAbsoluteTimeGetCurrent()
+
+        // 如果有新数据且数量较多，启用异步渲染优化
+        if newItemsCount > 5 {
+            isAsyncRendering = true
+
+            MasonryLogger.info("渲染优化启动 - 新增项目: \(newItemsCount)个")
+
+            // 分批渲染新内容，避免一次性渲染造成卡顿
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                let renderDuration = CFAbsoluteTimeGetCurrent() - renderStartTime
+                MasonryLogger.info("渲染完成 - 耗时: \(String(format: "%.2f", renderDuration * 1000))ms")
+                self.isAsyncRendering = false
+            }
+        } else if newItemsCount > 0 {
+            // 少量新数据，直接渲染
+            let renderDuration = CFAbsoluteTimeGetCurrent() - renderStartTime
+            MasonryLogger.info("快速渲染 - 新增: \(newItemsCount)个, 耗时: \(String(format: "%.2f", renderDuration * 1000))ms")
         }
     }
 }

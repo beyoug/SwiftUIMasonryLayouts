@@ -117,6 +117,14 @@ public class SampleDataLoader: ObservableObject {
         MasonryLogger.debug("重置所有 SampleDataLoader 实例")
         _instances.removeAll()
     }
+
+    /// 创建完全独立的实例（不使用缓存，确保数据隔离）
+    public static func createIndependentInstance(pageSize: Int, instanceId: String) -> SampleDataLoader {
+        let instance = SampleDataLoader(pageSize: pageSize)
+        instance.instanceId = instanceId
+        MasonryLogger.debug("创建独立 SampleDataLoader 实例 - ID: \(instanceId), pageSize: \(pageSize), 对象ID: \(ObjectIdentifier(instance))")
+        return instance
+    }
     
     // MARK: - 属性
     
@@ -130,6 +138,7 @@ public class SampleDataLoader: ObservableObject {
 
     private let pageSize: Int
     private var allData: [SampleDataItem] = []
+    public var instanceId: String = "default"
     
     // MARK: - 初始化
     
@@ -181,9 +190,23 @@ public class SampleDataLoader: ObservableObject {
     
     /// 加载第一页数据
     public func loadInitialData() {
+        MasonryLogger.debug("[\(instanceId)] loadInitialData开始 - 当前items: \(items.count), allData: \(allData.count)")
+
+        // 确保基础数据已加载
+        if allData.isEmpty {
+            MasonryLogger.info("[\(instanceId)] allData为空，重新加载基础数据")
+            loadAllData()
+        }
+
         currentPage = 0
         items.removeAll()
-        loadPage(0)
+
+        // 确保有数据可加载
+        if !allData.isEmpty && totalPages > 0 {
+            loadPage(0)
+        } else {
+            MasonryLogger.error("[\(instanceId)] 无法加载初始数据 - allData.count: \(allData.count), totalPages: \(totalPages)")
+        }
     }
 
     /// 加载下一页数据
@@ -194,10 +217,21 @@ public class SampleDataLoader: ObservableObject {
     
     /// 加载指定页数据
     func loadPage(_ page: Int) {
-        guard page >= 0 && page < totalPages else { return }
+        // 修复：确保数据已加载且页面有效
+        if allData.isEmpty {
+            MasonryLogger.warning("[\(instanceId)] allData为空，重新加载数据")
+            loadAllData()
+        }
+
+        guard page >= 0 && page < totalPages && !allData.isEmpty else {
+            MasonryLogger.error("[\(instanceId)] 无效页面请求 - page: \(page), totalPages: \(totalPages), allData.count: \(allData.count)")
+            return
+        }
 
         isLoading = true
         error = nil
+
+        MasonryLogger.debug("[\(instanceId)] 开始加载页面 \(page) - pageSize: \(pageSize), totalPages: \(totalPages)")
 
         // 🚀 优化：使用Task处理异步数据，避免并发问题
         Task { @MainActor in
@@ -226,7 +260,7 @@ public class SampleDataLoader: ObservableObject {
             self.hasNextPage = page < self.totalPages - 1
             self.isLoading = false
 
-            MasonryLogger.debug("数据加载完成 - 页面: \(page + 1)/\(self.totalPages), 项目数: \(self.items.count)/\(self.totalItems)")
+            MasonryLogger.debug("[\(self.instanceId)] 数据加载完成 - 页面: \(page + 1)/\(self.totalPages), 项目数: \(self.items.count)/\(self.totalItems)")
         }
     }
     

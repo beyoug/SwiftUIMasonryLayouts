@@ -178,7 +178,49 @@ init(
 
 ##### 底部触发回调
 ```swift
-func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack
+func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack<Data, ID, Content>
+```
+
+设置当滚动到底部时的回调函数。当滚动进度达到 `bottomTriggerThreshold` 时触发。
+
+**参数：**
+- `action`: 触发时执行的回调函数
+
+**返回值：**
+- 配置了底部触发回调的新实例
+
+##### Footer视图支持
+```swift
+func footer<FooterContent: View>(@ViewBuilder _ footerContent: @escaping () -> FooterContent) -> LazyMasonryStack<Data, ID, Content>
+```
+
+为瀑布流添加Footer视图，用于显示加载状态、无更多内容提示等。
+
+**参数：**
+- `footerContent`: Footer视图构建器
+
+**返回值：**
+- 配置了Footer视图的新实例
+
+**布局行为：**
+- 垂直布局：Footer显示在底部，占据全宽
+- 水平布局：Footer显示在右侧，占据全高
+
+**使用示例：**
+```swift
+LazyMasonryStack(items, columns: 2) { item in
+    ItemView(item: item)
+}
+.footer {
+    if isLoading {
+        ProgressView("加载中...")
+    } else if !hasMoreData {
+        Text("没有更多内容")
+    }
+}
+.onReachBottom {
+    loadMoreData()
+}
 ```
 
 ## 配置系统

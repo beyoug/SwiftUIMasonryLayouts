@@ -147,6 +147,7 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         if debounceInterval < 0.1 {
             MasonryLogger.warning("Validation: 防抖间隔不能小于0.1秒，已自动修正")
         }
+
     }
 }
 

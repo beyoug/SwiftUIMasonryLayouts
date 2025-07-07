@@ -120,7 +120,7 @@ open Package.swift
 
 - **LazyMasonryExample.swift** - 完整的瀑布流示例，包含垂直和水平布局
 - **SampleTestData.swift** - 200条静态测试数据，用于演示各种布局场景
-- **TestDataModels.swift** - 数据管理器，支持不同类型的测试数据加载
+- **SampleDataModels.swift** - 数据管理器，支持不同类型的测试数据加载
 
 ## 📚 核心组件
 

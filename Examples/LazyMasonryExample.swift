@@ -12,8 +12,8 @@ import SwiftUI
 @available(iOS 18.0, *)
 public struct LazyMasonryExample: View {
 
-    @StateObject private var verticalDataLoader = SampleDataLoader(pageSize: 10)
-    @StateObject private var horizontalDataLoader = SampleDataLoader(pageSize: 8)
+    @StateObject private var verticalDataLoader = SampleDataLoader.createIndependentInstance(pageSize: 10, instanceId: "vertical")
+    @StateObject private var horizontalDataLoader = SampleDataLoader.createIndependentInstance(pageSize: 8, instanceId: "horizontal")
     @State private var verticalLoadTriggerCount = 0
     @State private var horizontalLoadTriggerCount = 0
     @State private var selectedTabIndex = 0
@@ -84,10 +84,13 @@ public struct LazyMasonryExample: View {
             Divider()
 
             // 垂直懒加载瀑布流 - 支持下拉刷新、底部加载和Footer
+            // 性能优化：使用异步渲染
             LazyMasonryStack(
                 verticalDataLoader.items,
                 columns: 2,
-                spacing: 8
+                spacing: 8,
+                bottomTriggerThreshold: 0.7,  // 滚动到70%触发加载
+                debounceInterval: 0.8         // 0.8秒防抖
             ) { item in
                 verticalItemView(item)
             }
@@ -137,10 +140,13 @@ public struct LazyMasonryExample: View {
             Divider()
 
             // 水平懒加载瀑布流 - 支持右滑加载更多和Footer
+            // 性能优化：水平布局使用更保守的触发策略
             LazyMasonryStack(
                 horizontalDataLoader.items,
                 rows: 2,
-                spacing: 16
+                spacing: 16,
+                bottomTriggerThreshold: 0.8,  // 滚动到80%触发加载
+                debounceInterval: 0.6         // 0.6秒防抖
             ) { item in
                 horizontalItemView(item)
             }
@@ -163,6 +169,9 @@ public struct LazyMasonryExample: View {
                 MasonryLogger.info("初始化水平布局数据")
                 horizontalDataLoader.loadInitialData()
             }
+        }
+        .onChange(of: horizontalDataLoader.items.count) { oldCount, newCount in
+            MasonryLogger.debug("水平布局数据变化: \(oldCount) → \(newCount) 项")
         }
         .padding()
     }
@@ -242,14 +251,10 @@ public struct LazyMasonryExample: View {
             // 手动控制
             HStack {
                 Button("重置") {
-                    MasonryLogger.info("重置水平布局瀑布流数据")
+                    MasonryLogger.info("重置水平布局瀑布流数据 - 当前项目数: \(horizontalDataLoader.items.count)")
                     horizontalDataLoader.loadInitialData()
                     horizontalLoadTriggerCount = 0
-                }
-
-                Button("刷新") {
-                    MasonryLogger.info("手动刷新水平布局数据")
-                    horizontalDataLoader.refresh()
+                    MasonryLogger.info("重置完成 - 新项目数: \(horizontalDataLoader.items.count)")
                 }
 
                 Spacer()

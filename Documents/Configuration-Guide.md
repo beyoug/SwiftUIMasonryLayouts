@@ -124,7 +124,7 @@ MasonryStack(placement: .fill) {
 按顺序填充每一列，适用于需要保持特定顺序的场景。
 
 ```swift
-MasonryStack(placement: .sequential) {
+MasonryStack(placement: .order) {
     // 内容
 }
 ```
@@ -161,6 +161,37 @@ LazyMasonryStack(
     ItemView(item: item)
 }
 ```
+
+## Footer视图配置
+
+### 添加Footer视图
+为懒加载瀑布流添加Footer视图，用于显示加载状态或其他信息。
+
+```swift
+LazyMasonryStack(items, columns: 2) { item in
+    ItemView(item: item)
+}
+.footer {
+    if isLoading {
+        HStack {
+            ProgressView()
+            Text("加载中...")
+        }
+        .padding()
+    } else if !hasMoreData {
+        Text("没有更多内容")
+            .foregroundColor(.secondary)
+            .padding()
+    }
+}
+.onReachBottom {
+    loadMoreData()
+}
+```
+
+### Footer布局行为
+- **垂直布局**：Footer显示在瀑布流底部，占据全宽
+- **水平布局**：Footer显示在瀑布流右侧，占据全高
 
 ## 响应式布局
 
@@ -254,6 +285,12 @@ LazyMasonryStack(items, configuration: customConfig) { item in
 ### 选择合适的组件
 - **MasonryStack**：适用于静态内容，数据量较小的场景
 - **LazyMasonryStack**：适用于动态内容，需要分页加载的场景
+
+### Footer使用建议
+- 使用Footer显示加载状态，提升用户体验
+- 在Footer中提供明确的状态反馈（加载中、无更多内容等）
+- 保持Footer设计简洁，避免影响主要内容的展示
+- 考虑不同轴向下Footer的布局表现
 
 ### 性能优化
 - 使用自适应列宽时，选择合理的最小宽度值
