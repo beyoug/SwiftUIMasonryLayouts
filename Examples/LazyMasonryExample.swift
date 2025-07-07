@@ -5,7 +5,7 @@
 import SwiftUI
 
 /// 瀑布流布局示例
-/// 🎯 展示懒加载瀑布流的完整滚动体验：
+/// 展示懒加载瀑布流的完整滚动体验：
 /// - 垂直布局：下拉刷新 + 底部加载（使用系统refreshable + onReachBottom）
 /// - 水平布局：右滑加载更多（使用onReachBottom）
 /// - 双轴向布局演示
@@ -14,19 +14,19 @@ public struct LazyMasonryExample: View {
 
     @StateObject private var verticalDataLoader = SampleDataLoader(pageSize: 10)
     @StateObject private var horizontalDataLoader = SampleDataLoader(pageSize: 8)
-    @State private var verticalLoadCount = 0
-    @State private var horizontalLoadCount = 0
-    @State private var selectedTab = 0
+    @State private var verticalLoadTriggerCount = 0
+    @State private var horizontalLoadTriggerCount = 0
+    @State private var selectedTabIndex = 0
 
     public init() {}
 
     public var body: some View {
         VStack(spacing: 0) {
             // 标签选择器
-            tabSelector
+            tabSelectorView
 
             // 内容区域
-            TabView(selection: $selectedTab) {
+            TabView(selection: $selectedTabIndex) {
                 // 垂直布局测试
                 verticalLayoutView
                     .tag(0)
@@ -41,29 +41,29 @@ public struct LazyMasonryExample: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - 标签选择器
+    // MARK: - Tab Selector
 
-    private var tabSelector: some View {
+    private var tabSelectorView: some View {
         HStack(spacing: 0) {
-            Button(action: { selectedTab = 0 }) {
+            Button(action: { selectedTabIndex = 0 }) {
                 VStack(spacing: 4) {
                     Image(systemName: "rectangle.grid.2x2")
                     Text("Vertical")
                         .font(.caption)
                 }
-                .foregroundColor(selectedTab == 0 ? .blue : .secondary)
+                .foregroundColor(selectedTabIndex == 0 ? .blue : .secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
             }
 
-            Button(action: { selectedTab = 1 }) {
+            Button(action: { selectedTabIndex = 1 }) {
                 VStack(spacing: 4) {
                     Image(systemName: "rectangle.grid.2x2")
                         .rotationEffect(.degrees(90))
                     Text("Horizontal")
                         .font(.caption)
                 }
-                .foregroundColor(selectedTab == 1 ? .blue : .secondary)
+                .foregroundColor(selectedTabIndex == 1 ? .blue : .secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
             }
@@ -74,26 +74,30 @@ public struct LazyMasonryExample: View {
         .padding(.top, 8)
     }
 
-    // MARK: - 垂直布局视图
+    // MARK: - Vertical Layout
 
     private var verticalLayoutView: some View {
         VStack(spacing: 16) {
             // 垂直布局状态面板
-            verticalStatusPanel
+            verticalStatusPanelView
 
             Divider()
 
-            // 🚀 垂直懒加载瀑布流 - 支持下拉刷新和底部加载
+            // 垂直懒加载瀑布流 - 支持下拉刷新、底部加载和Footer
             LazyMasonryStack(
                 verticalDataLoader.items,
                 columns: 2,
                 spacing: 8
             ) { item in
-                smartItemView(item)
+                verticalItemView(item)
+            }
+            .footer {
+                // Footer示例：显示加载状态
+                verticalLoadingFooterView
             }
             .onReachBottom {
-                verticalLoadCount += 1
-                MasonryLogger.info("垂直布局触发底部加载 #\(verticalLoadCount)")
+                verticalLoadTriggerCount += 1
+                MasonryLogger.info("垂直布局触发底部加载 #\(verticalLoadTriggerCount)")
 
                 if verticalDataLoader.hasNextPage && !verticalDataLoader.isLoading {
                     MasonryLogger.info("加载垂直布局第 \(verticalDataLoader.currentPage + 1) 页")
@@ -123,16 +127,16 @@ public struct LazyMasonryExample: View {
         .padding()
     }
 
-    // MARK: - 水平布局视图
+    // MARK: - Horizontal Layout
 
     private var horizontalLayoutView: some View {
         VStack(spacing: 16) {
             // 水平布局状态面板
-            horizontalStatusPanel
+            horizontalStatusPanelView
 
             Divider()
 
-            // 🚀 水平懒加载瀑布流 - 支持右滑加载更多
+            // 水平懒加载瀑布流 - 支持右滑加载更多和Footer
             LazyMasonryStack(
                 horizontalDataLoader.items,
                 rows: 2,
@@ -140,9 +144,13 @@ public struct LazyMasonryExample: View {
             ) { item in
                 horizontalItemView(item)
             }
+            .footer {
+                // Footer示例：水平布局的右侧状态显示
+                horizontalLoadingFooterView
+            }
             .onReachBottom {
-                horizontalLoadCount += 1
-                MasonryLogger.info("水平布局触发右侧加载 #\(horizontalLoadCount)")
+                horizontalLoadTriggerCount += 1
+                MasonryLogger.info("水平布局触发右侧加载 #\(horizontalLoadTriggerCount)")
 
                 if horizontalDataLoader.hasNextPage && !horizontalDataLoader.isLoading {
                     MasonryLogger.info("加载水平布局第 \(horizontalDataLoader.currentPage + 1) 页")
@@ -159,9 +167,9 @@ public struct LazyMasonryExample: View {
         .padding()
     }
 
-    // MARK: - 状态面板
+    // MARK: - Status Panels
 
-    private var verticalStatusPanel: some View {
+    private var verticalStatusPanelView: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("垂直布局状态")
                 .font(.headline)
@@ -170,7 +178,7 @@ public struct LazyMasonryExample: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("当前页: \(verticalDataLoader.currentPage + 1)/\(verticalDataLoader.totalPages)")
                     Text("项目数: \(verticalDataLoader.items.count)/\(verticalDataLoader.totalItems)")
-                    Text("回调次数: \(verticalLoadCount)")
+                    Text("回调次数: \(verticalLoadTriggerCount)")
                 }
 
                 Spacer()
@@ -191,7 +199,7 @@ public struct LazyMasonryExample: View {
                 Button("重置") {
                     MasonryLogger.info("重置垂直布局瀑布流数据")
                     verticalDataLoader.loadInitialData()
-                    verticalLoadCount = 0
+                    verticalLoadTriggerCount = 0
                 }
 
                 Spacer()
@@ -206,7 +214,7 @@ public struct LazyMasonryExample: View {
         .cornerRadius(12)
     }
 
-    private var horizontalStatusPanel: some View {
+    private var horizontalStatusPanelView: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("水平布局状态")
                 .font(.headline)
@@ -215,7 +223,7 @@ public struct LazyMasonryExample: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("当前页: \(horizontalDataLoader.currentPage + 1)/\(horizontalDataLoader.totalPages)")
                     Text("项目数: \(horizontalDataLoader.items.count)/\(horizontalDataLoader.totalItems)")
-                    Text("回调次数: \(horizontalLoadCount)")
+                    Text("回调次数: \(horizontalLoadTriggerCount)")
                 }
 
                 Spacer()
@@ -236,7 +244,7 @@ public struct LazyMasonryExample: View {
                 Button("重置") {
                     MasonryLogger.info("重置水平布局瀑布流数据")
                     horizontalDataLoader.loadInitialData()
-                    horizontalLoadCount = 0
+                    horizontalLoadTriggerCount = 0
                 }
 
                 Button("刷新") {
@@ -256,8 +264,10 @@ public struct LazyMasonryExample: View {
         .cornerRadius(12)
     }
     
-    /// 精美的数据卡片视图 - 支持图片、主题色和丰富内容
-    private func smartItemView(_ item: SampleDataItem) -> some View {
+    // MARK: - Item Views
+
+    /// 垂直布局数据卡片视图 - 支持图片、主题色和丰富内容
+    private func verticalItemView(_ item: SampleDataItem) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // 图片区域 - 动态高度瀑布流效果
             let imageHeight = CGFloat(120 + (item.id * 13) % 80) // 120-200px 动态高度范围
@@ -461,6 +471,72 @@ public struct LazyMasonryExample: View {
         )
 
         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+    }
+
+    // MARK: - Footer Views
+
+    /// 垂直布局Footer视图 - 显示加载状态
+    private var verticalLoadingFooterView: some View {
+        HStack(spacing: 8) {
+            if verticalDataLoader.isLoading {
+                ProgressView()
+                    .scaleEffect(0.8)
+                Text("正在加载更多内容...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if !verticalDataLoader.hasNextPage {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                Text("已加载全部内容，共 \(verticalDataLoader.items.count) 项")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Image(systemName: "arrow.up.circle")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                Text("继续滚动加载更多")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(8)
+    }
+
+    /// 水平布局Footer视图 - 显示加载状态
+    private var horizontalLoadingFooterView: some View {
+        VStack(spacing: 4) {
+            if horizontalDataLoader.isLoading {
+                ProgressView()
+                    .scaleEffect(0.7)
+                Text("加载中")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            } else if !horizontalDataLoader.hasNextPage {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundColor(.green)
+                Text("完成")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            } else {
+                Image(systemName: "arrow.right.circle")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                Text("右滑")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(8)
     }
 }
 

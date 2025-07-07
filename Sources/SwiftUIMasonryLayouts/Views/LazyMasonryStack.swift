@@ -7,18 +7,17 @@ import SwiftUI
 // MARK: - 懒加载瀑布流
 
 /// 懒加载瀑布流：高效的瀑布流布局组件
-/// 🎯 核心功能：瀑布流布局 + 滚动事件检测
+/// 🎯 核心功能：瀑布流布局 + 滚动事件检测 + Footer支持
 @available(iOS 18.0, *)
 public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Content: View>: View where Data.Element: Identifiable, Data.Element.ID == ID {
-    
+
     // MARK: - 核心属性
 
     private let data: Data
     private let configuration: MasonryConfiguration
     private let content: (Data.Element) -> Content
+    private let footer: AnyView?
 
-
-    
     // MARK: - 状态管理
 
     @State private var scrollOffset: CGFloat = 0
@@ -26,17 +25,16 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     @State private var viewportHeight: CGFloat = 0
     @State private var lastBottomTriggerTime: TimeInterval = 0
 
-    // 🚀 优化：添加防抖和性能优化状态
+    // 防抖状态
     @State private var isUpdatingLayout = false
-    @State private var pendingDataCount = 0
 
     // MARK: - 回调
 
     private let onReachBottom: (() -> Void)?
     
     // MARK: - 初始化
-    
-    /// 创建懒加载瀑布流
+
+    /// 创建懒加载瀑布流（无Footer）
     /// - Parameters:
     ///   - data: 数据源
     ///   - axis: 布局轴向
@@ -69,10 +67,11 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
             debounceInterval: debounceInterval
         )
         self.content = content
+        self.footer = nil
         self.onReachBottom = nil
     }
-    
-    /// 创建懒加载瀑布流（使用配置对象）
+
+    /// 创建懒加载瀑布流（使用配置对象，无Footer）
     /// - Parameters:
     ///   - data: 数据源
     ///   - configuration: 完整配置对象
@@ -85,6 +84,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         self.data = data
         self.configuration = configuration
         self.content = content
+        self.footer = nil
         self.onReachBottom = nil
     }
 
@@ -93,42 +93,50 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         _ data: Data,
         configuration: MasonryConfiguration,
         @ViewBuilder content: @escaping (Data.Element) -> Content,
+        footer: AnyView?,
         onReachBottom: (() -> Void)?
     ) {
         self.data = data
         self.configuration = configuration
         self.content = content
+        self.footer = footer
         self.onReachBottom = onReachBottom
     }
     
-    // MARK: - 计算属性
-    
-    /// 当前显示的项目
-    private var visibleItems: [Data.Element] {
-        return Array(data)
-    }
+
     
     // MARK: - 视图主体
-    
+
     public var body: some View {
         GeometryReader { geometry in
             ScrollView(configuration.axis == .vertical ? .vertical : .horizontal) {
-                // 🚀 优化：使用LazyVStack/LazyHStack减少布局计算开销
                 if configuration.axis == .vertical {
                     LazyVStack(spacing: configuration.vSpacing) {
                         masonryContent
+
+                        // Footer支持：垂直布局时在底部显示
+                        if let footer = footer {
+                            footer
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                 } else {
                     LazyHStack(spacing: configuration.hSpacing) {
                         masonryContent
+
+                        // Footer支持：水平布局时在右侧显示
+                        if let footer = footer {
+                            footer
+                                .frame(maxHeight: .infinity)
+                        }
                     }
                 }
             }
             .onAppear {
-                setupViewport(geometry: geometry)
+                updateViewport(size: geometry.size)
             }
             .onChange(of: geometry.size) { _, newSize in
-                updateViewport(newSize: newSize)
+                updateViewport(size: newSize)
             }
             .onScrollGeometryChange(for: CGFloat.self) { scrollGeometry in
                 return configuration.axis == .vertical
@@ -141,7 +149,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         }
     }
 
-    // 🚀 优化：提取瀑布流内容为计算属性，减少重建
+    // 瀑布流内容
     private var masonryContent: some View {
         MasonryLayout(
             axis: configuration.axis,
@@ -150,7 +158,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
             vSpacing: configuration.vSpacing,
             placement: configuration.placement
         ) {
-            ForEach(visibleItems, id: \.id) { item in
+            ForEach(data, id: \.id) { item in
                 content(item)
                     .fixedSize(
                         horizontal: configuration.axis == .horizontal,
@@ -173,25 +181,12 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     
     // MARK: - 私有方法
 
-    /// 🚀 优化：设置视口尺寸
-    private func setupViewport(geometry: GeometryProxy) {
-        if configuration.axis == .vertical {
-            viewportHeight = geometry.size.height
-        } else {
-            viewportHeight = geometry.size.width
-        }
+    /// 更新视口尺寸
+    private func updateViewport(size: CGSize) {
+        viewportHeight = configuration.axis == .vertical ? size.height : size.width
     }
 
-    /// 🚀 优化：更新视口尺寸
-    private func updateViewport(newSize: CGSize) {
-        if configuration.axis == .vertical {
-            viewportHeight = newSize.height
-        } else {
-            viewportHeight = newSize.width
-        }
-    }
-
-    /// 🚀 优化：更新内容高度
+    /// 更新内容高度
     private func updateContentHeight(_ size: CGSize) {
         let newHeight = configuration.axis == .vertical ? size.height : size.width
 
@@ -201,7 +196,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         }
     }
 
-    /// 🚀 优化：防抖滚动处理
+    /// 防抖滚动处理
     private func handleScrollChangeWithDebounce(_ newOffset: CGFloat) {
         scrollOffset = newOffset
 
@@ -214,7 +209,7 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
     /// 检查滚动触发条件
     private func checkScrollTriggers() {
         guard contentHeight > 0 && viewportHeight > 0 else { return }
-        guard !isUpdatingLayout else { return } // 🚀 优化：避免在布局更新时触发
+        guard !isUpdatingLayout else { return } // 避免在布局更新时触发
 
         let scrollProgress = max(0, scrollOffset) / max(contentHeight - viewportHeight, 1)
 
@@ -225,29 +220,17 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
             if timeSinceLastTrigger >= configuration.debounceInterval {
                 lastBottomTriggerTime = currentTime
-                isUpdatingLayout = true // 🚀 优化：标记正在更新
+                isUpdatingLayout = true // 标记正在更新
 
                 onReachBottom?()
 
-                // 🚀 优化：延迟重置更新标记
+                // 延迟重置更新标记
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.isUpdatingLayout = false
                 }
             }
         }
-
-
     }
-
-
-
-
-
-
-
-
-
-
 }
 
 // MARK: - 链式配置方法
@@ -255,12 +238,23 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 @available(iOS 18.0, *)
 public extension LazyMasonryStack {
 
-    func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack {
+    func onReachBottom(_ action: @escaping () -> Void) -> LazyMasonryStack<Data, ID, Content> {
         return LazyMasonryStack(
             data,
             configuration: configuration,
             content: content,
+            footer: footer,
             onReachBottom: action
+        )
+    }
+
+    func footer<FooterContent: View>(@ViewBuilder _ footerContent: @escaping () -> FooterContent) -> LazyMasonryStack<Data, ID, Content> {
+        return LazyMasonryStack(
+            data,
+            configuration: configuration,
+            content: content,
+            footer: AnyView(footerContent()),
+            onReachBottom: onReachBottom
         )
     }
 }
