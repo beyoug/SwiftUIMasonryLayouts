@@ -8,6 +8,7 @@ import SwiftUI
 /// 展示懒加载瀑布流的完整滚动体验：
 /// - 垂直布局：下拉刷新 + 底部加载（使用系统refreshable + onReachBottom）
 /// - 水平布局：右滑加载更多（使用onReachBottom）
+/// - 滚动控制：滚动到顶部 + 滚动到指定ID（新增功能测试）
 /// - 双轴向布局演示
 @available(iOS 18.0, *)
 public struct LazyMasonryExample: View {
@@ -17,6 +18,12 @@ public struct LazyMasonryExample: View {
     @State private var verticalLoadTriggerCount = 0
     @State private var horizontalLoadTriggerCount = 0
     @State private var selectedTabIndex = 0
+
+    // 滚动控制状态（新增）
+    @State private var verticalScrollProxy: ScrollViewProxy?
+    @State private var horizontalScrollProxy: ScrollViewProxy?
+    @State private var showScrollIdInput = false
+    @State private var targetScrollId: String = ""
 
     public init() {}
 
@@ -77,103 +84,123 @@ public struct LazyMasonryExample: View {
     // MARK: - Vertical Layout
 
     private var verticalLayoutView: some View {
-        VStack(spacing: 16) {
-            // 垂直布局状态面板
-            verticalStatusPanelView
+        ZStack {
+            VStack(spacing: 16) {
+                // 垂直布局状态面板
+                verticalStatusPanelView
 
-            Divider()
+                Divider()
 
-            // 垂直懒加载瀑布流 - 支持下拉刷新、底部加载和Footer
-            // 性能优化：使用异步渲染
-            LazyMasonryStack(
-                verticalDataLoader.items,
-                columns: 2,
-                spacing: 8,
-                bottomTriggerThreshold: 0.7,  // 滚动到70%触发加载
-                debounceInterval: 0.8         // 0.8秒防抖
-            ) { item in
-                verticalItemView(item)
-            }
-            .footer {
-                // Footer示例：显示加载状态
-                verticalLoadingFooterView
-            }
-            .onReachBottom {
-                verticalLoadTriggerCount += 1
-                MasonryLogger.info("垂直布局触发底部加载 #\(verticalLoadTriggerCount)")
+                // 垂直懒加载瀑布流 - 支持下拉刷新、底部加载和Footer + 滚动控制
+                ScrollViewReader { proxy in
+                    LazyMasonryStack(
+                        verticalDataLoader.items,
+                        columns: 2,
+                        spacing: 8,
+                        bottomTriggerThreshold: 0.7,  // 滚动到70%触发加载
+                        debounceInterval: 0.8         // 0.8秒防抖
+                    ) { item in
+                        verticalItemView(item)
+                            .id(item.id) // 确保每个项目都有ID用于滚动定位
+                    }
+                    .footer {
+                        // Footer示例：显示加载状态
+                        verticalLoadingFooterView
+                    }
+                    .onReachBottom {
+                        verticalLoadTriggerCount += 1
+                        MasonryLogger.info("垂直布局触发底部加载 #\(verticalLoadTriggerCount)")
 
-                if verticalDataLoader.hasNextPage && !verticalDataLoader.isLoading {
-                    MasonryLogger.info("加载垂直布局第 \(verticalDataLoader.currentPage + 1) 页")
-                    verticalDataLoader.loadNextPage()
-                }
-            }
-            .refreshable {
-                MasonryLogger.info("垂直布局触发下拉刷新")
-                await withCheckedContinuation { continuation in
-                    verticalDataLoader.refresh()
-                    // 模拟网络延迟
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        continuation.resume()
+                        if verticalDataLoader.hasNextPage && !verticalDataLoader.isLoading {
+                            MasonryLogger.info("加载垂直布局第 \(verticalDataLoader.currentPage + 1) 页")
+                            verticalDataLoader.loadNextPage()
+                        }
+                    }
+                    .refreshable {
+                        MasonryLogger.info("垂直布局触发下拉刷新")
+                        await withCheckedContinuation { continuation in
+                            verticalDataLoader.refresh()
+                            // 模拟网络延迟
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                continuation.resume()
+                            }
+                        }
+                    }
+                    .onAppear {
+                        verticalScrollProxy = proxy
                     }
                 }
             }
-        }
-        .onAppear {
-            if verticalDataLoader.items.isEmpty {
-                MasonryLogger.info("初始化垂直布局数据")
-                verticalDataLoader.loadInitialData()
+            .onAppear {
+                if verticalDataLoader.items.isEmpty {
+                    MasonryLogger.info("初始化垂直布局数据")
+                    verticalDataLoader.loadInitialData()
+                }
             }
+            .onChange(of: verticalDataLoader.items.count) { oldCount, newCount in
+                MasonryLogger.debug("垂直布局数据加载完成: \(oldCount) → \(newCount) 项")
+            }
+            .padding()
+
+            // 悬浮滚动控制按钮
+            verticalFloatingButtons
         }
-        .onChange(of: verticalDataLoader.items.count) { oldCount, newCount in
-            MasonryLogger.debug("垂直布局数据加载完成: \(oldCount) → \(newCount) 项")
-        }
-        .padding()
     }
 
     // MARK: - Horizontal Layout
 
     private var horizontalLayoutView: some View {
-        VStack(spacing: 16) {
-            // 水平布局状态面板
-            horizontalStatusPanelView
+        ZStack {
+            VStack(spacing: 16) {
+                // 水平布局状态面板
+                horizontalStatusPanelView
 
-            Divider()
+                Divider()
 
-            // 水平懒加载瀑布流 - 支持右滑加载更多和Footer
-            // 性能优化：水平布局使用更保守的触发策略
-            LazyMasonryStack(
-                horizontalDataLoader.items,
-                rows: 2,
-                spacing: 16,
-                bottomTriggerThreshold: 0.8,  // 滚动到80%触发加载
-                debounceInterval: 0.6         // 0.6秒防抖
-            ) { item in
-                horizontalItemView(item)
-            }
-            .footer {
-                // Footer示例：水平布局的右侧状态显示
-                horizontalLoadingFooterView
-            }
-            .onReachBottom {
-                horizontalLoadTriggerCount += 1
-                MasonryLogger.info("水平布局触发右侧加载 #\(horizontalLoadTriggerCount)")
+                // 水平懒加载瀑布流 - 支持右滑加载更多和Footer + 滚动控制
+                ScrollViewReader { proxy in
+                    LazyMasonryStack(
+                        horizontalDataLoader.items,
+                        rows: 2,
+                        spacing: 16,
+                        bottomTriggerThreshold: 0.8,  // 滚动到80%触发加载
+                        debounceInterval: 0.6         // 0.6秒防抖
+                    ) { item in
+                        horizontalItemView(item)
+                            .id(item.id) // 确保每个项目都有ID用于滚动定位
+                    }
+                    .footer {
+                        // Footer示例：水平布局的右侧状态显示
+                        horizontalLoadingFooterView
+                    }
+                    .onReachBottom {
+                        horizontalLoadTriggerCount += 1
+                        MasonryLogger.info("水平布局触发右侧加载 #\(horizontalLoadTriggerCount)")
 
-                if horizontalDataLoader.hasNextPage && !horizontalDataLoader.isLoading {
-                    MasonryLogger.info("加载水平布局第 \(horizontalDataLoader.currentPage + 1) 页")
-                    horizontalDataLoader.loadNextPage()
+                        if horizontalDataLoader.hasNextPage && !horizontalDataLoader.isLoading {
+                            MasonryLogger.info("加载水平布局第 \(horizontalDataLoader.currentPage + 1) 页")
+                            horizontalDataLoader.loadNextPage()
+                        }
+                    }
+                    .onAppear {
+                        horizontalScrollProxy = proxy
+                    }
                 }
             }
-        }
-        .onAppear {
-            if horizontalDataLoader.items.isEmpty {
-                MasonryLogger.info("初始化水平布局数据")
-                horizontalDataLoader.loadInitialData()
+            .onAppear {
+                if horizontalDataLoader.items.isEmpty {
+                    MasonryLogger.info("初始化水平布局数据")
+                    horizontalDataLoader.loadInitialData()
+                }
             }
+            .onChange(of: horizontalDataLoader.items.count) { oldCount, newCount in
+                MasonryLogger.debug("水平布局数据变化: \(oldCount) → \(newCount) 项")
+            }
+            .padding()
+
+            // 悬浮滚动控制按钮
+            horizontalFloatingButtons
         }
-        .onChange(of: horizontalDataLoader.items.count) { oldCount, newCount in
-            MasonryLogger.debug("水平布局数据变化: \(oldCount) → \(newCount) 项")
-        }
-        .padding()
     }
 
     // MARK: - Status Panels
@@ -202,6 +229,8 @@ public struct LazyMasonryExample: View {
             .padding(8)
             .background(Color.gray.opacity(0.1))
             .cornerRadius(8)
+
+
 
             // 手动控制
             HStack {
@@ -542,6 +571,214 @@ public struct LazyMasonryExample: View {
         .padding(.horizontal, 8)
         .background(Color.gray.opacity(0.05))
         .cornerRadius(8)
+    }
+
+    // MARK: - 悬浮滚动控制按钮
+
+    /// 垂直布局的悬浮滚动控制按钮
+    private var verticalFloatingButtons: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            HStack {
+                Spacer()
+
+                VStack(spacing: 12) {
+                    // 滚动到顶部按钮
+                    Button(action: {
+                        scrollToTop(for: .vertical)
+                    }) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .background(Circle().fill(Color.blue))
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+                    // 滚动到ID按钮
+                    Button(action: {
+                        showScrollIdInput.toggle()
+                    }) {
+                        Image(systemName: "target")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .background(Circle().fill(Color.green))
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+            }
+        }
+        .overlay(
+            // ID输入弹窗
+            scrollIdInputOverlay
+        )
+    }
+
+    /// 水平布局的悬浮滚动控制按钮
+    private var horizontalFloatingButtons: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            HStack {
+                Spacer()
+
+                VStack(spacing: 12) {
+                    // 滚动到顶部按钮（水平布局中是滚动到最左侧）
+                    Button(action: {
+                        scrollToTop(for: .horizontal)
+                    }) {
+                        Image(systemName: "arrow.left.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .background(Circle().fill(Color.blue))
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+                    // 滚动到ID按钮
+                    Button(action: {
+                        showScrollIdInput.toggle()
+                    }) {
+                        Image(systemName: "target")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .background(Circle().fill(Color.green))
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+            }
+        }
+        .overlay(
+            // ID输入弹窗
+            scrollIdInputOverlay
+        )
+    }
+
+    /// 滚动ID输入弹窗
+    private var scrollIdInputOverlay: some View {
+        Group {
+            if showScrollIdInput {
+                VStack {
+                    Spacer()
+
+                    VStack(spacing: 16) {
+                        Text("滚动到指定项目")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+
+                        TextField("输入项目ID (例如: 5)", text: $targetScrollId)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.numberPad)
+
+                        HStack(spacing: 12) {
+                            Button("取消") {
+                                showScrollIdInput = false
+                                targetScrollId = ""
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("滚动") {
+                                if !targetScrollId.isEmpty {
+                                    scrollToId(targetScrollId)
+                                    showScrollIdInput = false
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(targetScrollId.isEmpty)
+                        }
+                    }
+                    .padding(20)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(16)
+                    .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                    .padding(.horizontal, 40)
+
+                    Spacer()
+                }
+                .background(Color.black.opacity(0.3))
+                .onTapGesture {
+                    showScrollIdInput = false
+                    targetScrollId = ""
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showScrollIdInput)
+    }
+
+    // MARK: - 滚动控制方法
+
+    /// 滚动到顶部/最左侧
+    private func scrollToTop(for layout: LayoutType) {
+        let proxy: ScrollViewProxy?
+        let dataLoader: SampleDataLoader
+        let logMessage: String
+
+        switch layout {
+        case .vertical:
+            proxy = verticalScrollProxy
+            dataLoader = verticalDataLoader
+            logMessage = "垂直布局滚动到顶部"
+        case .horizontal:
+            proxy = horizontalScrollProxy
+            dataLoader = horizontalDataLoader
+            logMessage = "水平布局滚动到最左侧"
+        }
+
+        guard let scrollProxy = proxy, let firstItem = dataLoader.items.first else {
+            MasonryLogger.info("\(logMessage) - 无可用数据或代理")
+            return
+        }
+
+        MasonryLogger.info(logMessage)
+
+        withAnimation(.easeInOut(duration: 0.6)) {
+            scrollProxy.scrollTo(firstItem.id, anchor: layout == .vertical ? .top : .leading)
+        }
+    }
+
+    /// 滚动到指定ID
+    private func scrollToId(_ idString: String) {
+        guard let id = Int(idString) else {
+            MasonryLogger.info("无效的ID格式: \(idString)")
+            return
+        }
+
+        let proxy: ScrollViewProxy?
+        let layoutName: String
+
+        switch selectedTabIndex {
+        case 0:
+            proxy = verticalScrollProxy
+            layoutName = "垂直布局"
+        case 1:
+            proxy = horizontalScrollProxy
+            layoutName = "水平布局"
+        default:
+            return
+        }
+
+        guard let scrollProxy = proxy else {
+            MasonryLogger.info("\(layoutName)滚动代理不可用")
+            return
+        }
+
+        MasonryLogger.info("\(layoutName)滚动到ID: \(id)")
+
+        withAnimation(.easeInOut(duration: 0.6)) {
+            scrollProxy.scrollTo(id, anchor: .center)
+        }
+
+        // 清空输入
+        targetScrollId = ""
+    }
+
+    /// 布局类型枚举
+    private enum LayoutType {
+        case vertical
+        case horizontal
     }
 }
 
