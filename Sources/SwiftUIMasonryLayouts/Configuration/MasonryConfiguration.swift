@@ -69,12 +69,12 @@ public extension MasonryLines {
 
 /// 定义瀑布流视图中项目的放置策略
 public enum MasonryPlacementMode: Sendable, Equatable, Hashable {
-    
+
     /// 智能填充模式
     ///
     /// 每个项目都会被放置在当前最短的行或列中，以保持整体布局的平衡
     case fill
-    
+
     /// 顺序放置模式
     ///
     /// 项目按照数据源的顺序依次放置在各行或列中，循环进行
@@ -126,28 +126,63 @@ public struct MasonryConfiguration: Sendable, Equatable, Hashable {
         bottomTriggerThreshold: CGFloat = 0.6,
         debounceInterval: TimeInterval = 1.0
     ) {
+        // 严格的参数验证
+        guard hSpacing.isFinite && hSpacing >= 0 else {
+            MasonryLogger.error("Validation: 水平间距无效 \(hSpacing)，使用默认值8")
+            self.hSpacing = 8
+            self.axis = axis
+            self.lines = lines
+            self.vSpacing = max(0, vSpacing)
+            self.placement = placement
+            self.bottomTriggerThreshold = max(0, min(1, bottomTriggerThreshold))
+            self.debounceInterval = max(0.1, debounceInterval)
+            return
+        }
+
+        guard vSpacing.isFinite && vSpacing >= 0 else {
+            MasonryLogger.error("Validation: 垂直间距无效 \(vSpacing)，使用默认值8")
+            self.vSpacing = 8
+            self.axis = axis
+            self.lines = lines
+            self.hSpacing = hSpacing
+            self.placement = placement
+            self.bottomTriggerThreshold = max(0, min(1, bottomTriggerThreshold))
+            self.debounceInterval = max(0.1, debounceInterval)
+            return
+        }
+
+        guard bottomTriggerThreshold.isFinite && bottomTriggerThreshold >= 0 && bottomTriggerThreshold <= 1 else {
+            MasonryLogger.error("Validation: 底部触发阈值无效 \(bottomTriggerThreshold)，使用默认值0.6")
+            self.bottomTriggerThreshold = 0.6
+            self.axis = axis
+            self.lines = lines
+            self.hSpacing = hSpacing
+            self.vSpacing = vSpacing
+            self.placement = placement
+            self.debounceInterval = max(0.1, debounceInterval)
+            return
+        }
+
+        guard debounceInterval.isFinite && debounceInterval >= 0.1 else {
+            MasonryLogger.error("Validation: 防抖间隔无效 \(debounceInterval)，使用默认值1.0")
+            self.debounceInterval = 1.0
+            self.axis = axis
+            self.lines = lines
+            self.hSpacing = hSpacing
+            self.vSpacing = vSpacing
+            self.placement = placement
+            self.bottomTriggerThreshold = bottomTriggerThreshold
+            return
+        }
+
+        // 所有参数都有效，正常初始化
         self.axis = axis
         self.lines = lines
-        self.hSpacing = max(0, hSpacing)
-        self.vSpacing = max(0, vSpacing)
+        self.hSpacing = hSpacing
+        self.vSpacing = vSpacing
         self.placement = placement
-        self.bottomTriggerThreshold = max(0, min(1, bottomTriggerThreshold))
-        self.debounceInterval = max(0.1, debounceInterval)
-
-        // 参数验证和警告
-        if hSpacing < 0 {
-            MasonryLogger.warning("Validation: 水平间距不能为负数，已自动修正为0")
-        }
-        if vSpacing < 0 {
-            MasonryLogger.warning("Validation: 垂直间距不能为负数，已自动修正为0")
-        }
-        if bottomTriggerThreshold < 0 || bottomTriggerThreshold > 1 {
-            MasonryLogger.warning("Validation: 底部触发阈值应在0-1之间，已自动修正")
-        }
-        if debounceInterval < 0.1 {
-            MasonryLogger.warning("Validation: 防抖间隔不能小于0.1秒，已自动修正")
-        }
-
+        self.bottomTriggerThreshold = bottomTriggerThreshold
+        self.debounceInterval = debounceInterval
     }
 }
 
@@ -365,39 +400,48 @@ internal struct LayoutParameters {
 
         switch placement {
         case .fill:
-            // 使用高效的最小值查找算法
-            let count = lineOffsets.count
-            guard count > 1 else { return 0 }
-
-            var minIndex = 0
-            var minValue = lineOffsets[0]
-
-            // 展开小数组的循环，减少分支预测失败
-            if count <= 4 {
-                for i in 1..<count {
-                    if lineOffsets[i] < minValue {
-                        minValue = lineOffsets[i]
-                        minIndex = i
-                    }
-                }
-            } else {
-                // 对大数组使用步长优化
-                for i in stride(from: 1, to: count, by: 1) {
-                    if lineOffsets[i] < minValue {
-                        minValue = lineOffsets[i]
-                        minIndex = i
-                    }
-                }
-            }
-            return minIndex
+            return selectFillModeIndex(lineOffsets: lineOffsets)
         case .order:
-            // 使用位运算优化取模运算（当count是2的幂时）
-            let count = lineOffsets.count
-            if count.nonzeroBitCount == 1 {
-                return index & (count - 1)
-            } else {
-                return index % count
+            return selectOrderModeIndex(lineOffsets: lineOffsets, index: index)
+        }
+    }
+
+    /// 智能填充模式的行选择
+    private func selectFillModeIndex(lineOffsets: [CGFloat]) -> Int {
+        let count = lineOffsets.count
+        guard count > 1 else { return 0 }
+
+        var minIndex = 0
+        var minValue = lineOffsets[0]
+
+        // 展开小数组的循环，减少分支预测失败
+        if count <= 4 {
+            for i in 1..<count {
+                if lineOffsets[i] < minValue {
+                    minValue = lineOffsets[i]
+                    minIndex = i
+                }
             }
+        } else {
+            // 对大数组使用步长优化
+            for i in stride(from: 1, to: count, by: 1) {
+                if lineOffsets[i] < minValue {
+                    minValue = lineOffsets[i]
+                    minIndex = i
+                }
+            }
+        }
+        return minIndex
+    }
+
+    /// 顺序放置模式的行选择
+    private func selectOrderModeIndex(lineOffsets: [CGFloat], index: Int) -> Int {
+        let count = lineOffsets.count
+        // 使用位运算优化取模运算（当count是2的幂时）
+        if count.nonzeroBitCount == 1 {
+            return index & (count - 1)
+        } else {
+            return index % count
         }
     }
 
@@ -466,6 +510,8 @@ internal enum MasonryInternal {
         return CGSize(width: validWidth, height: validHeight)
     }
 }
+
+
 
 // MARK: - 简化日志系统
 

@@ -89,14 +89,32 @@ public struct MasonryLayout: Layout, Sendable {
 
     /// 计算布局尺寸
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) -> CGSize {
-        let containerSize = determineContainerSize(from: proposal, subviews: subviews)
-
-        guard containerSize.width > 0 else {
+        // 边界情况：空子视图
+        guard !subviews.isEmpty else {
             return .zero
         }
 
+        let containerSize = determineContainerSize(from: proposal, subviews: subviews)
+
+        // 边界情况：无效容器尺寸
+        guard containerSize.width > 0.1 && containerSize.height > 0.1 else {
+            #if DEBUG
+            assertionFailure("MasonryLayout: 容器尺寸过小 \(containerSize)")
+            #else
+            MasonryLogger.warning("Layout: 容器尺寸过小 \(containerSize)，返回最小尺寸")
+            #endif
+            return CGSize(width: max(1, containerSize.width), height: max(1, containerSize.height))
+        }
+
+        // 边界情况：极大容器尺寸
+        let maxSize: CGFloat = 100000
+        let safeContainerSize = CGSize(
+            width: min(containerSize.width, maxSize),
+            height: min(containerSize.height, maxSize)
+        )
+
         updateCache(&cache, subviews: subviews)
-        let result = performLayoutCalculation(containerSize: containerSize, subviews: subviews, cache: &cache)
+        let result = performLayoutCalculation(containerSize: safeContainerSize, subviews: subviews, cache: &cache)
 
         return result.totalSize
     }
@@ -179,17 +197,42 @@ public struct MasonryLayout: Layout, Sendable {
     
     /// 放置子视图
     public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) {
+        // 边界情况：空子视图
+        guard !subviews.isEmpty else { return }
+
         let containerSize = bounds.size
 
-        guard containerSize.width > 0 else {
+        // 边界情况：无效容器尺寸
+        guard containerSize.width > 0.1 && containerSize.height > 0.1 else {
+            #if DEBUG
+            assertionFailure("MasonryLayout: 放置区域过小 \(containerSize)")
+            #else
+            MasonryLogger.warning("Layout: 放置区域过小 \(containerSize)，跳过布局")
+            #endif
             return
         }
 
         let result = performLayoutCalculation(containerSize: containerSize, subviews: subviews, cache: &cache)
-        for (index, subview) in subviews.enumerated() {
-            guard index < result.itemFrames.count else { continue }
 
+        // 边界情况：布局结果与子视图数量不匹配
+        guard result.itemFrames.count == subviews.count else {
+            #if DEBUG
+            assertionFailure("MasonryLayout: 布局结果数量不匹配 - frames: \(result.itemFrames.count), subviews: \(subviews.count)")
+            #else
+            MasonryLogger.error("Layout: 布局结果数量不匹配 - frames: \(result.itemFrames.count), subviews: \(subviews.count)")
+            #endif
+            return
+        }
+
+        for (index, subview) in subviews.enumerated() {
             let frame = result.itemFrames[index]
+
+            // 边界情况：无效帧尺寸
+            guard frame.size.isValid else {
+                MasonryLogger.warning("Layout: 跳过无效帧 \(frame) at index \(index)")
+                continue
+            }
+
             let position = CGPoint(
                 x: bounds.minX + frame.minX,
                 y: bounds.minY + frame.minY

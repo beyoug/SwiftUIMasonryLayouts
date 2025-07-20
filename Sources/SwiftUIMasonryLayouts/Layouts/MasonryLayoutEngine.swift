@@ -517,14 +517,14 @@ public struct CacheStatistics {
 
 /// 专门为懒加载场景的布局缓存
 @available(iOS 18.0, *)
-internal struct LazyLayoutCache {
+internal actor LazyLayoutCache {
     private var itemSizes: [AnyHashable: CGSize] = [:]
     private var layoutResults: [Int: LazyLayoutResult] = [:] // 使用Int键替代String
     private let maxCacheSize: Int = 30 // 减少缓存大小，降低内存占用
     private let maxItemSizeCache: Int = 500 // 减少项目尺寸缓存
 
     /// 缓存项目尺寸
-    mutating func cacheItemSize<ID: Hashable>(for id: ID, size: CGSize) {
+    func cacheItemSize<ID: Hashable>(for id: ID, size: CGSize) {
         // 激进的内存管理策略
         if itemSizes.count >= maxItemSizeCache {
             cleanupOldCache()
@@ -533,7 +533,7 @@ internal struct LazyLayoutCache {
     }
 
     /// 高效的缓存清理算法
-    private mutating func cleanupOldCache() {
+    private func cleanupOldCache() {
         let targetSize = maxItemSizeCache * 3 / 4 // 保留75%，减少清理频率
         guard itemSizes.count > targetSize else { return }
 
@@ -561,7 +561,7 @@ internal struct LazyLayoutCache {
     }
 
     /// 缓存布局结果
-    mutating func cacheLayoutResult(for key: Int, result: LazyLayoutResult) {
+    func cacheLayoutResult(for key: Int, result: LazyLayoutResult) {
         if layoutResults.count >= maxCacheSize {
             if let firstKey = layoutResults.keys.first {
                 layoutResults.removeValue(forKey: firstKey)
@@ -576,23 +576,23 @@ internal struct LazyLayoutCache {
     }
 
     /// 清除所有缓存
-    mutating func invalidate() {
+    func invalidate() {
         itemSizes.removeAll()
         layoutResults.removeAll()
     }
 
     /// 清除特定项目的缓存
-    mutating func invalidateItem<ID: Hashable>(for id: ID) {
+    func invalidateItem<ID: Hashable>(for id: ID) {
         itemSizes.removeValue(forKey: AnyHashable(id))
     }
 
-    /// 清除布局结果缓存（保留项目尺寸缓存）
-    mutating func invalidateLayoutResults() {
+    /// 清除布局结果缓存，保留项目尺寸缓存
+    func invalidateLayoutResults() {
         layoutResults.removeAll()
     }
 
     /// 清理过期的项目尺寸缓存
-    mutating func cleanupItemSizes<ID: Hashable>(validIds: Set<ID>) {
+    func cleanupItemSizes<ID: Hashable>(validIds: Set<ID>) {
         let validHashableIds = Set(validIds.map { AnyHashable($0) })
         itemSizes = itemSizes.filter { validHashableIds.contains($0.key) }
     }

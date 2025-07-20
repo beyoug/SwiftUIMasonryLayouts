@@ -150,19 +150,19 @@ private struct ResponsiveMasonryLayout<Content: View>: View {
         }
     }
     
-    /// 根据屏幕宽度更新配置（带防抖）
+    /// 根据屏幕宽度更新配置，带防抖处理
     private func updateConfigurationWithDebounce(for width: CGFloat) {
         // 取消之前的防抖任务
         debounceTask?.cancel()
-        
+
         // 创建新的防抖任务
         debounceTask = Task {
             // 使用全局配置的防抖时间
             try? await Task.sleep(nanoseconds: MasonryInternalConfig.responsiveDebounceDelay)
-            
+
             // 检查任务是否被取消
             guard !Task.isCancelled else { return }
-            
+
             // 在主线程更新配置
             await MainActor.run {
                 updateConfiguration(for: width)

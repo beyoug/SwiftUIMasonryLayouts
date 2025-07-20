@@ -246,6 +246,12 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
     /// 异步处理数据加载，优化滚动性能
     private func handleAsyncDataLoading() {
+        // 边界情况检查
+        guard !data.isEmpty else {
+            MasonryLogger.warning("LazyMasonryStack: 数据源为空，跳过底部触发")
+            return
+        }
+
         // 缓存当前数据数量，减少重复访问
         let currentDataCount = data.count
 
