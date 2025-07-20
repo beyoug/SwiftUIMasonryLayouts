@@ -86,8 +86,8 @@ MasonryStack(adaptiveColumns: 120, spacing: 8) {
 
 ```swift
 MasonryStack(
-    phoneColumns: 2,
-    tabletColumns: 3,
+    compactColumns: 2,
+    regularColumns: 3,
     spacing: 8
 ) {
     ForEach(items) { item in

@@ -89,15 +89,15 @@ final class InitializationTests: XCTestCase {
             Text("Test")
         }
         XCTAssertNotNil(adaptiveColumnsStack)
-        
+
         // 测试自适应行便捷初始化
         let adaptiveRowsStack = MasonryStack(adaptiveRows: 100, spacing: 8) {
             Text("Test")
         }
         XCTAssertNotNil(adaptiveRowsStack)
-        
+
         // 测试响应式便捷初始化
-        let responsiveStack = MasonryStack(phoneColumns: 2, tabletColumns: 4) {
+        let responsiveStack = MasonryStack(compactColumns: 2, regularColumns: 4) {
             Text("Test")
         }
         XCTAssertNotNil(responsiveStack)

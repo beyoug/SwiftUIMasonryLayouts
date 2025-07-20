@@ -63,7 +63,7 @@ init(
 ##### 自适应列
 ```swift
 init(
-    adaptiveColumns minColumnWidth: CGFloat,
+    adaptiveColumns minWidth: CGFloat,
     spacing: CGFloat = 8,
     @ViewBuilder content: @escaping () -> Content
 )
@@ -72,17 +72,17 @@ init(
 ##### 自适应行
 ```swift
 init(
-    adaptiveRows minRowHeight: CGFloat,
+    adaptiveRows minHeight: CGFloat,
     spacing: CGFloat = 8,
     @ViewBuilder content: @escaping () -> Content
 )
 ```
 
-##### 响应式布局（简化版）
+##### 响应式布局
 ```swift
 init(
-    phoneColumns: Int,
-    tabletColumns: Int,
+    compactColumns: Int,
+    regularColumns: Int,
     spacing: CGFloat = 8,
     @ViewBuilder content: @escaping () -> Content
 )
@@ -126,50 +126,90 @@ public init(
 
 #### 便捷初始化方法
 
-##### 列数配置
+##### 列数配置（简洁版）
 ```swift
 init(
     _ data: Data,
     columns: Int,
     spacing: CGFloat = 8,
-    bottomTriggerThreshold: CGFloat = 0.6,
-    debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
 ```
 
-##### 行数配置
+##### 列数配置（完整版）
+```swift
+init(
+    _ data: Data,
+    columns: Int,
+    spacing: CGFloat,
+    bottomTriggerThreshold: CGFloat,
+    debounceInterval: TimeInterval,
+    @ViewBuilder content: @escaping (Data.Element) -> Content
+)
+```
+
+##### 行数配置（简洁版）
 ```swift
 init(
     _ data: Data,
     rows: Int,
     spacing: CGFloat = 8,
-    bottomTriggerThreshold: CGFloat = 0.6,
-    debounceInterval: TimeInterval = 1.0,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
 ```
 
-##### 自适应列
+##### 行数配置（完整版）
 ```swift
 init(
     _ data: Data,
-    adaptiveColumns minColumnWidth: CGFloat,
-    spacing: CGFloat = 8,
-    bottomTriggerThreshold: CGFloat = 0.6,
-    debounceInterval: TimeInterval = 1.0,
+    rows: Int,
+    spacing: CGFloat,
+    bottomTriggerThreshold: CGFloat,
+    debounceInterval: TimeInterval,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
 ```
 
-##### 自适应行
+##### 自适应列（简洁版）
 ```swift
 init(
     _ data: Data,
-    adaptiveRows minRowHeight: CGFloat,
+    adaptiveColumns minWidth: CGFloat,
     spacing: CGFloat = 8,
-    bottomTriggerThreshold: CGFloat = 0.6,
-    debounceInterval: TimeInterval = 1.0,
+    @ViewBuilder content: @escaping (Data.Element) -> Content
+)
+```
+
+##### 自适应列（完整版）
+```swift
+init(
+    _ data: Data,
+    adaptiveColumns minWidth: CGFloat,
+    spacing: CGFloat,
+    bottomTriggerThreshold: CGFloat,
+    debounceInterval: TimeInterval,
+    @ViewBuilder content: @escaping (Data.Element) -> Content
+)
+```
+
+##### 自适应行（简洁版）
+```swift
+init(
+    _ data: Data,
+    adaptiveRows minHeight: CGFloat,
+    spacing: CGFloat = 8,
+    @ViewBuilder content: @escaping (Data.Element) -> Content
+)
+```
+
+##### 自适应行（完整版）
+```swift
+init(
+    _ data: Data,
+    adaptiveRows minHeight: CGFloat,
+    spacing: CGFloat,
+    bottomTriggerThreshold: CGFloat,
+    debounceInterval: TimeInterval,
     @ViewBuilder content: @escaping (Data.Element) -> Content
 )
 ```

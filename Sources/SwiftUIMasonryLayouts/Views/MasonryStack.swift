@@ -240,34 +240,34 @@ public extension MasonryStack {
 
     /// 创建自适应列瀑布流
     /// - Parameters:
-    ///   - minColumnWidth: 最小列宽
+    ///   - minWidth: 最小列宽
     ///   - spacing: 间距
     ///   - content: 内容构建器
     init(
-        adaptiveColumns minColumnWidth: CGFloat,
+        adaptiveColumns minWidth: CGFloat,
         spacing: CGFloat = 8,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(
-            configuration: .adaptive(minColumnWidth: minColumnWidth, spacing: spacing),
+            configuration: .adaptive(minColumnWidth: minWidth, spacing: spacing),
             content: content
         )
     }
 
     /// 创建自适应行瀑布流
     /// - Parameters:
-    ///   - minRowHeight: 最小行高
+    ///   - minHeight: 最小行高
     ///   - spacing: 间距
     ///   - content: 内容构建器
     init(
-        adaptiveRows minRowHeight: CGFloat,
+        adaptiveRows minHeight: CGFloat,
         spacing: CGFloat = 8,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(
             configuration: MasonryConfiguration(
                 axis: .horizontal,
-                lines: .adaptive(minSize: minRowHeight),
+                lines: .adaptive(minSize: minHeight),
                 hSpacing: spacing,
                 vSpacing: spacing,
                 placement: .fill
@@ -276,22 +276,23 @@ public extension MasonryStack {
         )
     }
 
-    /// 创建响应式瀑布流（简化版）
+    /// 创建响应式瀑布流
     /// - Parameters:
-    ///   - phoneColumns: 手机端列数
-    ///   - tabletColumns: 平板端列数
+    ///   - compactColumns: 紧凑布局列数（小屏幕设备）
+    ///   - regularColumns: 常规布局列数（大屏幕设备）
     ///   - spacing: 间距
     ///   - content: 内容构建器
     init(
-        phoneColumns: Int,
-        tabletColumns: Int,
+        compactColumns: Int,
+        regularColumns: Int,
         spacing: CGFloat = 8,
         @ViewBuilder content: @escaping () -> Content
     ) {
         let breakpoints: [CGFloat: MasonryConfiguration] = [
-            0: .columns(phoneColumns, spacing: spacing),
-            768: .columns(tabletColumns, spacing: spacing)
+            0: .columns(compactColumns, spacing: spacing),
+            768: .columns(regularColumns, spacing: spacing)
         ]
         self.init(breakpoints: breakpoints, content: content)
     }
+
 }

@@ -312,7 +312,32 @@ public extension LazyMasonryStack {
 @available(iOS 18.0, *)
 public extension LazyMasonryStack {
 
-    /// 创建列数配置的懒加载瀑布流
+    /// 创建列数配置的懒加载瀑布流（简洁版）
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - columns: 列数
+    ///   - spacing: 间距（可选）
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        columns: Int,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            axis: .vertical,
+            lines: .fixed(columns),
+            hSpacing: spacing,
+            vSpacing: spacing,
+            placement: .fill,
+            bottomTriggerThreshold: 0.6,
+            debounceInterval: 1.0,
+            content: content
+        )
+    }
+
+    /// 创建列数配置的懒加载瀑布流（完整版）
     /// - Parameters:
     ///   - data: 数据源
     ///   - columns: 列数
@@ -323,9 +348,9 @@ public extension LazyMasonryStack {
     init(
         _ data: Data,
         columns: Int,
-        spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.6,
-        debounceInterval: TimeInterval = 1.0,
+        spacing: CGFloat,
+        bottomTriggerThreshold: CGFloat,
+        debounceInterval: TimeInterval,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.init(
@@ -341,7 +366,32 @@ public extension LazyMasonryStack {
         )
     }
 
-    /// 创建行数配置的懒加载瀑布流
+    /// 创建行数配置的懒加载瀑布流（简洁版）
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - rows: 行数
+    ///   - spacing: 间距（可选）
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        rows: Int,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            axis: .horizontal,
+            lines: .fixed(rows),
+            hSpacing: spacing,
+            vSpacing: spacing,
+            placement: .fill,
+            bottomTriggerThreshold: 0.6,
+            debounceInterval: 1.0,
+            content: content
+        )
+    }
+
+    /// 创建行数配置的懒加载瀑布流（完整版）
     /// - Parameters:
     ///   - data: 数据源
     ///   - rows: 行数
@@ -352,9 +402,9 @@ public extension LazyMasonryStack {
     init(
         _ data: Data,
         rows: Int,
-        spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.6,
-        debounceInterval: TimeInterval = 1.0,
+        spacing: CGFloat,
+        bottomTriggerThreshold: CGFloat,
+        debounceInterval: TimeInterval,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.init(
@@ -370,27 +420,54 @@ public extension LazyMasonryStack {
         )
     }
 
-    /// 创建自适应列懒加载瀑布流
+    /// 创建自适应列懒加载瀑布流（简洁版）
     /// - Parameters:
     ///   - data: 数据源
-    ///   - minColumnWidth: 最小列宽
-    ///   - spacing: 间距
-    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - minWidth: 最小列宽
+    ///   - spacing: 间距（可选）
     ///   - content: 内容构建器
     init(
         _ data: Data,
-        adaptiveColumns minColumnWidth: CGFloat,
+        adaptiveColumns minWidth: CGFloat,
         spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.6,
-        debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.init(
             data,
             configuration: MasonryConfiguration(
                 axis: .vertical,
-                lines: .adaptive(minSize: minColumnWidth),
+                lines: .adaptive(minSize: minWidth),
+                hSpacing: spacing,
+                vSpacing: spacing,
+                placement: .fill,
+                bottomTriggerThreshold: 0.6,
+                debounceInterval: 1.0
+            ),
+            content: content
+        )
+    }
+
+    /// 创建自适应列懒加载瀑布流（完整版）
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - minWidth: 最小列宽
+    ///   - spacing: 间距
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        adaptiveColumns minWidth: CGFloat,
+        spacing: CGFloat,
+        bottomTriggerThreshold: CGFloat,
+        debounceInterval: TimeInterval,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            configuration: MasonryConfiguration(
+                axis: .vertical,
+                lines: .adaptive(minSize: minWidth),
                 hSpacing: spacing,
                 vSpacing: spacing,
                 placement: .fill,
@@ -401,27 +478,54 @@ public extension LazyMasonryStack {
         )
     }
 
-    /// 创建自适应行懒加载瀑布流
+    /// 创建自适应行懒加载瀑布流（简洁版）
     /// - Parameters:
     ///   - data: 数据源
-    ///   - minRowHeight: 最小行高
-    ///   - spacing: 间距
-    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
-    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - minHeight: 最小行高
+    ///   - spacing: 间距（可选）
     ///   - content: 内容构建器
     init(
         _ data: Data,
-        adaptiveRows minRowHeight: CGFloat,
+        adaptiveRows minHeight: CGFloat,
         spacing: CGFloat = 8,
-        bottomTriggerThreshold: CGFloat = 0.6,
-        debounceInterval: TimeInterval = 1.0,
         @ViewBuilder content: @escaping (Data.Element) -> Content
     ) {
         self.init(
             data,
             configuration: MasonryConfiguration(
                 axis: .horizontal,
-                lines: .adaptive(minSize: minRowHeight),
+                lines: .adaptive(minSize: minHeight),
+                hSpacing: spacing,
+                vSpacing: spacing,
+                placement: .fill,
+                bottomTriggerThreshold: 0.6,
+                debounceInterval: 1.0
+            ),
+            content: content
+        )
+    }
+
+    /// 创建自适应行懒加载瀑布流（完整版）
+    /// - Parameters:
+    ///   - data: 数据源
+    ///   - minHeight: 最小行高
+    ///   - spacing: 间距
+    ///   - bottomTriggerThreshold: 底部触发阈值 (0.0-1.0)
+    ///   - debounceInterval: 防抖间隔 (秒)
+    ///   - content: 内容构建器
+    init(
+        _ data: Data,
+        adaptiveRows minHeight: CGFloat,
+        spacing: CGFloat,
+        bottomTriggerThreshold: CGFloat,
+        debounceInterval: TimeInterval,
+        @ViewBuilder content: @escaping (Data.Element) -> Content
+    ) {
+        self.init(
+            data,
+            configuration: MasonryConfiguration(
+                axis: .horizontal,
+                lines: .adaptive(minSize: minHeight),
                 hSpacing: spacing,
                 vSpacing: spacing,
                 placement: .fill,

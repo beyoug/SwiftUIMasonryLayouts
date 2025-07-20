@@ -212,12 +212,12 @@ MasonryStack(breakpoints: breakpoints) {
 ```
 
 ### 简化响应式配置
-针对手机和平板的简化配置。
+针对紧凑和常规布局的简化配置。
 
 ```swift
 MasonryStack(
-    phoneColumns: 2,    // 手机端2列
-    tabletColumns: 3    // 平板端3列
+    compactColumns: 2,    // 紧凑布局2列（小屏幕）
+    regularColumns: 3     // 常规布局3列（大屏幕）
 ) {
     // 内容
 }
