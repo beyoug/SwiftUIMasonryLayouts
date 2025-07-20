@@ -20,7 +20,7 @@ import SwiftUI
 @available(iOS 18.0, *)
 public enum SwiftUIMasonryLayouts {
     /// 库版本号
-    public static let version = "1.0.0"
+    public static let version = "1.2.0"
 }
 
 // MARK: - 便捷类型别名
