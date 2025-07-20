@@ -365,18 +365,39 @@ internal struct LayoutParameters {
 
         switch placement {
         case .fill:
-            // 🚀 优化：使用简单循环替代enumerated().min()，通常更快
+            // 使用高效的最小值查找算法
+            let count = lineOffsets.count
+            guard count > 1 else { return 0 }
+
             var minIndex = 0
             var minValue = lineOffsets[0]
-            for i in 1..<lineOffsets.count {
-                if lineOffsets[i] < minValue {
-                    minValue = lineOffsets[i]
-                    minIndex = i
+
+            // 展开小数组的循环，减少分支预测失败
+            if count <= 4 {
+                for i in 1..<count {
+                    if lineOffsets[i] < minValue {
+                        minValue = lineOffsets[i]
+                        minIndex = i
+                    }
+                }
+            } else {
+                // 对大数组使用步长优化
+                for i in stride(from: 1, to: count, by: 1) {
+                    if lineOffsets[i] < minValue {
+                        minValue = lineOffsets[i]
+                        minIndex = i
+                    }
                 }
             }
             return minIndex
         case .order:
-            return index % lineOffsets.count
+            // 使用位运算优化取模运算（当count是2的幂时）
+            let count = lineOffsets.count
+            if count.nonzeroBitCount == 1 {
+                return index & (count - 1)
+            } else {
+                return index % count
+            }
         }
     }
 

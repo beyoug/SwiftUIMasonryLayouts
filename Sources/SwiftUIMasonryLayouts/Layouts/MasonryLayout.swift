@@ -103,26 +103,23 @@ public struct MasonryLayout: Layout, Sendable {
 
     /// 智能确定容器尺寸，处理各种嵌套布局场景
     private func determineContainerSize(from proposal: ProposedViewSize, subviews: Subviews) -> CGSize {
-        let proposedWidth = proposal.width
-        let proposedHeight = proposal.height
+        // 预计算轴向判断，避免重复访问
+        let isVertical = axis == .vertical
 
-        // 处理宽度
+        // 处理宽度，减少可选值解包
         let width: CGFloat
-        if let proposedWidth = proposedWidth, proposedWidth > 0 {
+        if let proposedWidth = proposal.width, proposedWidth > 0 {
             width = proposedWidth
         } else {
-            // 当没有明确宽度时，尝试从子视图推断合理的宽度
             width = inferReasonableWidth(from: subviews)
         }
 
-        // 处理高度
+        // 处理高度，使用预计算的轴向判断
         let height: CGFloat
-        if let proposedHeight = proposedHeight, proposedHeight > 0 {
+        if let proposedHeight = proposal.height, proposedHeight > 0 {
             height = proposedHeight
         } else {
-            // 对于垂直布局，高度应该自适应内容
-            // 对于水平布局，需要推断合理的高度
-            if axis == .vertical {
+            if isVertical {
                 height = 10000 // 允许垂直扩展
             } else {
                 height = inferReasonableHeight(from: subviews)
@@ -136,14 +133,19 @@ public struct MasonryLayout: Layout, Sendable {
     private func inferReasonableWidth(from subviews: Subviews) -> CGFloat {
         guard !subviews.isEmpty else { return MasonryInternalConfig.minimumInferredWidth }
 
-        // 计算子视图的理想宽度
-        let sampleSize = subviews.prefix(min(3, subviews.count))
-        let averageWidth = sampleSize.reduce(0) { sum, subview in
-            let size = subview.sizeThatFits(.unspecified)
-            return sum + size.width
-        } / CGFloat(sampleSize.count)
+        // 减少采样数量，提升性能
+        let sampleCount = min(2, subviews.count)
+        var totalWidth: CGFloat = 0
 
-        // 根据列数计算合理的容器宽度
+        // 使用直接循环替代reduce，避免闭包开销
+        for i in 0..<sampleCount {
+            let size = subviews[i].sizeThatFits(.unspecified)
+            totalWidth += size.width
+        }
+
+        let averageWidth = totalWidth / CGFloat(sampleCount)
+
+        // 预计算线数和间距
         let lineCount = max(1, lines.fixedCount ?? 2)
         let totalSpacing = CGFloat(lineCount - 1) * hSpacing
         let minWidth = averageWidth * CGFloat(lineCount) + totalSpacing
@@ -155,14 +157,19 @@ public struct MasonryLayout: Layout, Sendable {
     private func inferReasonableHeight(from subviews: Subviews) -> CGFloat {
         guard !subviews.isEmpty else { return MasonryInternalConfig.minimumInferredHeight }
 
-        // 计算子视图的理想高度
-        let sampleSize = subviews.prefix(min(3, subviews.count))
-        let averageHeight = sampleSize.reduce(0) { sum, subview in
-            let size = subview.sizeThatFits(.unspecified)
-            return sum + size.height
-        } / CGFloat(sampleSize.count)
+        // 减少采样数量，提升性能
+        let sampleCount = min(2, subviews.count)
+        var totalHeight: CGFloat = 0
 
-        // 根据行数计算合理的容器高度
+        // 使用直接循环替代reduce，避免闭包开销
+        for i in 0..<sampleCount {
+            let size = subviews[i].sizeThatFits(.unspecified)
+            totalHeight += size.height
+        }
+
+        let averageHeight = totalHeight / CGFloat(sampleCount)
+
+        // 预计算线数和间距
         let lineCount = max(1, lines.fixedCount ?? 2)
         let totalSpacing = CGFloat(lineCount - 1) * vSpacing
         let minHeight = averageHeight * CGFloat(lineCount) + totalSpacing
@@ -199,13 +206,16 @@ public struct MasonryLayout: Layout, Sendable {
     
     /// 更新缓存
     public func updateCache(_ cache: inout LayoutCache, subviews: Subviews) {
-        // 当子视图数量或配置变化时清除缓存
-        let needsInvalidation = cache.subviewCount != subviews.count || cache.lastConfigurationHash != configurationHash
+        // 精确的失效条件检查
+        let needsInvalidation = cache.subviewCount != subviews.count ||
+                               cache.lastConfigurationHash != configurationHash ||
+                               cache.lastAxis != axis
 
         if needsInvalidation {
             cache.invalidate()
             cache.subviewCount = subviews.count
             cache.lastConfigurationHash = configurationHash
+            cache.lastAxis = axis // 记录轴向信息
         }
     }
 
@@ -243,10 +253,11 @@ public struct MasonryLayout: Layout, Sendable {
             parameters: parameters
         )
 
-        // 缓存结果
+        // 缓存结果时记录完整信息
         cache.cachedResult = result
         cache.lastContainerSize = containerSize
         cache.lastConfigurationHash = configurationHash
+        cache.lastAxis = axis
 
         return result
     }

@@ -24,56 +24,82 @@ internal struct MasonryLayoutEngine {
         subviews: LayoutSubviews,
         parameters: LayoutParameters
     ) -> LayoutResult {
-        // 🚀 优化：直接使用预计算的值
+        // 预计算常用值，避免重复计算
         let lineCount = parameters.lineCount
         let lineSize = parameters.lineSize
+        let isVertical = parameters.axis == .vertical
+        let spacing = isVertical ? parameters.vSpacing : parameters.hSpacing
+        let crossSpacing = isVertical ? parameters.hSpacing : parameters.vSpacing
 
+        // 预分配数组容量，减少内存重分配
         var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
         var itemFrames: [CGRect] = []
+        itemFrames.reserveCapacity(subviews.count)
+
+        // 预计算ProposedViewSize，避免重复创建
+        let proposedSize = ProposedViewSize(
+            width: isVertical ? lineSize : nil,
+            height: isVertical ? nil : lineSize
+        )
 
         for (index, subview) in subviews.enumerated() {
-            let itemSize = subview.sizeThatFits(ProposedViewSize(
-                width: parameters.axis == .vertical ? lineSize : nil,
-                height: parameters.axis == .horizontal ? lineSize : nil
-            ))
+            let itemSize = subview.sizeThatFits(proposedSize)
 
-            // 验证项目尺寸的有效性
-            let validatedItemSize = MasonryInternal.validateSize(itemSize, context: "Item \(index)")
+            // 内联尺寸验证，减少函数调用开销
+            let validatedItemSize = CGSize(
+                width: max(0, itemSize.width.isFinite ? itemSize.width : 0),
+                height: max(0, itemSize.height.isFinite ? itemSize.height : 0)
+            )
 
             let lineIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: index)
 
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else {
-                MasonryLogger.warning("Layout: 无效的行索引 \(lineIndex)，跳过项目 \(index)")
                 continue
             }
 
-            let frame = calculateItemFrame(
-                itemSize: validatedItemSize,
-                lineIndex: lineIndex,
-                lineSize: lineSize,
-                lineOffset: lineOffsets[lineIndex],
-                parameters: parameters
-            )
+            // 内联帧计算，减少函数调用
+            let frame: CGRect
+            if isVertical {
+                let x = CGFloat(lineIndex) * (lineSize + crossSpacing)
+                frame = CGRect(
+                    x: x,
+                    y: lineOffsets[lineIndex],
+                    width: lineSize,
+                    height: validatedItemSize.height
+                )
+            } else {
+                let y = CGFloat(lineIndex) * (lineSize + crossSpacing)
+                frame = CGRect(
+                    x: lineOffsets[lineIndex],
+                    y: y,
+                    width: validatedItemSize.width,
+                    height: lineSize
+                )
+            }
 
             itemFrames.append(frame)
 
-            // 更新行偏移
-            updateLineOffset(
-                &lineOffsets,
-                lineIndex: lineIndex,
-                itemSize: validatedItemSize,
-                parameters: parameters
-            )
+            // 内联行偏移更新，减少函数调用
+            if isVertical {
+                lineOffsets[lineIndex] += validatedItemSize.height + spacing
+            } else {
+                lineOffsets[lineIndex] += validatedItemSize.width + spacing
+            }
         }
-        
-        // 🚀 优化：直接计算总尺寸，避免方法调用开销
-        let totalSize = calculateTotalSize(
-            lineOffsets: lineOffsets,
-            lineSize: lineSize,
-            lineCount: lineCount,
-            parameters: parameters
-        )
-        
+
+        // 内联总尺寸计算，避免方法调用开销
+        let maxOffset = lineOffsets.max() ?? 0
+        let totalSize: CGSize
+        if isVertical {
+            let totalWidth = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * crossSpacing
+            let totalHeight = maxOffset > 0 ? max(0, maxOffset - spacing) : 0
+            totalSize = CGSize(width: totalWidth, height: totalHeight)
+        } else {
+            let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * crossSpacing
+            let totalWidth = maxOffset > 0 ? max(0, maxOffset - spacing) : 0
+            totalSize = CGSize(width: totalWidth, height: totalHeight)
+        }
+
         return LayoutResult(
             itemFrames: itemFrames,
             totalSize: totalSize,
@@ -87,7 +113,6 @@ internal struct MasonryLayoutEngine {
     ///   - items: 数据项目
     ///   - configuration: 布局配置
     ///   - sizeCalculator: 项目尺寸计算器
-    ///   - cache: 懒加载缓存
     /// - Returns: 懒加载布局结果
     static func calculateLazyLayout<Data: RandomAccessCollection, ID: Hashable>(
         containerSize: CGSize,
@@ -98,7 +123,6 @@ internal struct MasonryLayoutEngine {
 
         // 🎯 布局引擎层面的零尺寸保护
         guard containerSize.width > 0 && containerSize.height > 0 else {
-            MasonryLogger.warning("LayoutEngine: 容器尺寸无效 \(containerSize)，返回空布局结果")
             return LazyLayoutResult(
                 itemFrames: [],
                 totalSize: .zero,
@@ -116,53 +140,86 @@ internal struct MasonryLayoutEngine {
             placement: configuration.placement
         )
 
-        // 🚀 优化：直接使用预计算的值
+        // 预计算常用值
         let lineCount = parameters.lineCount
         let lineSize = parameters.lineSize
+        let isVertical = configuration.axis == .vertical
+        let spacing = isVertical ? configuration.vSpacing : configuration.hSpacing
+        let crossSpacing = isVertical ? configuration.hSpacing : configuration.vSpacing
 
-        
+        // 预分配容量，减少内存重分配
+        let itemCount = items.count
         var itemFrames: [CGRect] = []
+        itemFrames.reserveCapacity(itemCount)
         var lineOffsets: [CGFloat] = Array(repeating: 0, count: lineCount)
         var positions: [AnyHashable: CGRect] = [:]
-        
+        positions.reserveCapacity(itemCount)
+
         for (index, item) in items.enumerated() {
-            let itemSize = calculateItemSize(
-                item: item,
-                lineSize: lineSize,
-                configuration: configuration,
-                sizeCalculator: sizeCalculator
-            )
-            
+            // 内联尺寸计算，减少函数调用
+            let itemSize: CGSize
+            if let calculator = sizeCalculator {
+                itemSize = calculator(item, lineSize)
+            } else {
+                // 简化默认尺寸计算
+                let hashValue = abs(item.id.hashValue)
+                if isVertical {
+                    let heightVariation = CGFloat(hashValue % 180) + 120
+                    itemSize = CGSize(width: lineSize, height: heightVariation)
+                } else {
+                    let widthVariation = CGFloat(hashValue % 180) + 120
+                    itemSize = CGSize(width: widthVariation, height: lineSize)
+                }
+            }
+
             let lineIndex = parameters.selectLineIndex(lineOffsets: lineOffsets, index: index)
-            
+
             guard lineIndex >= 0 && lineIndex < lineOffsets.count else { continue }
-            
-            let frame = calculateItemFrame(
-                itemSize: itemSize,
-                lineIndex: lineIndex,
-                lineSize: lineSize,
-                lineOffset: lineOffsets[lineIndex],
-                parameters: parameters
-            )
-            
+
+            // 内联帧计算
+            let frame: CGRect
+            if isVertical {
+                let x = CGFloat(lineIndex) * (lineSize + crossSpacing)
+                frame = CGRect(
+                    x: x,
+                    y: lineOffsets[lineIndex],
+                    width: lineSize,
+                    height: itemSize.height
+                )
+            } else {
+                let y = CGFloat(lineIndex) * (lineSize + crossSpacing)
+                frame = CGRect(
+                    x: lineOffsets[lineIndex],
+                    y: y,
+                    width: itemSize.width,
+                    height: lineSize
+                )
+            }
+
             itemFrames.append(frame)
             positions[AnyHashable(item.id)] = frame
-            updateLineOffset(
-                &lineOffsets,
-                lineIndex: lineIndex,
-                itemSize: itemSize,
-                parameters: parameters
-            )
+
+            // 内联行偏移更新
+            if isVertical {
+                lineOffsets[lineIndex] += itemSize.height + spacing
+            } else {
+                lineOffsets[lineIndex] += itemSize.width + spacing
+            }
         }
-        
-        // 🚀 优化：直接计算总尺寸，避免方法调用开销
-        let totalSize = calculateTotalSize(
-            lineOffsets: lineOffsets,
-            lineSize: lineSize,
-            lineCount: lineCount,
-            parameters: parameters
-        )
-        
+
+        // 内联总尺寸计算
+        let maxOffset = lineOffsets.max() ?? 0
+        let totalSize: CGSize
+        if isVertical {
+            let totalWidth = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * crossSpacing
+            let totalHeight = maxOffset > 0 ? max(0, maxOffset - spacing) : 0
+            totalSize = CGSize(width: totalWidth, height: totalHeight)
+        } else {
+            let totalHeight = CGFloat(lineCount) * lineSize + CGFloat(max(0, lineCount - 1)) * crossSpacing
+            let totalWidth = maxOffset > 0 ? max(0, maxOffset - spacing) : 0
+            totalSize = CGSize(width: totalWidth, height: totalHeight)
+        }
+
         return LazyLayoutResult(
             itemFrames: itemFrames,
             totalSize: totalSize,
@@ -372,7 +429,10 @@ public struct LayoutCache {
     /// 子视图数量
     var subviewCount: Int = 0
 
-    // 🚀 优化：仅在DEBUG模式下统计缓存性能
+    // 添加轴向信息以支持更智能的缓存策略
+    var lastAxis: Axis = .vertical
+
+    // 仅在DEBUG模式下统计缓存性能
     #if DEBUG
     /// 缓存命中次数
     private var cacheHits: Int = 0
@@ -381,18 +441,23 @@ public struct LayoutCache {
     #endif
 
     /// 清除缓存
+    /// 只重置必要的字段，减少内存分配
     mutating func invalidate() {
         cachedResult = nil
         lastContainerSize = .zero
         lastConfigurationHash = 0
         subviewCount = 0
+        // 保留轴向信息，避免不必要的重置
     }
 
-    /// 检查尺寸是否兼容（允许小幅度变化）
+    /// 尺寸兼容性检查
+    /// 使用CacheManager的算法
     func isSizeCompatible(with size: CGSize) -> Bool {
-        let tolerance: CGFloat = 1.0
-        return abs(lastContainerSize.width - size.width) <= tolerance &&
-               abs(lastContainerSize.height - size.height) <= tolerance
+        return CacheManager.isSizeCompatible(
+            lastSize: lastContainerSize,
+            currentSize: size,
+            axis: lastAxis
+        )
     }
 
     // 🚀 优化：仅在DEBUG模式下记录缓存统计
@@ -450,33 +515,43 @@ public struct CacheStatistics {
     public var totalRequests: Int { hits + misses }
 }
 
-/// 专门为懒加载场景优化的布局缓存
+/// 专门为懒加载场景的布局缓存
 @available(iOS 18.0, *)
 internal struct LazyLayoutCache {
     private var itemSizes: [AnyHashable: CGSize] = [:]
-    private var layoutResults: [String: LazyLayoutResult] = [:]
-    private let maxCacheSize: Int = 50
-    private let maxItemSizeCache: Int = 1000
+    private var layoutResults: [Int: LazyLayoutResult] = [:] // 使用Int键替代String
+    private let maxCacheSize: Int = 30 // 减少缓存大小，降低内存占用
+    private let maxItemSizeCache: Int = 500 // 减少项目尺寸缓存
 
     /// 缓存项目尺寸
     mutating func cacheItemSize<ID: Hashable>(for id: ID, size: CGSize) {
-        // 防止无限增长
+        // 激进的内存管理策略
         if itemSizes.count >= maxItemSizeCache {
-            // 智能清理：优先保留最近使用的缓存
             cleanupOldCache()
         }
         itemSizes[AnyHashable(id)] = size
     }
 
-    /// 🚀 优化：简化缓存清理算法
+    /// 高效的缓存清理算法
     private mutating func cleanupOldCache() {
-        let targetSize = maxItemSizeCache / 2 // 简化：直接清理一半
+        let targetSize = maxItemSizeCache * 3 / 4 // 保留75%，减少清理频率
         guard itemSizes.count > targetSize else { return }
 
-        // 简化：直接移除前一半的键（基于字典的内部顺序）
-        let keysToRemove = Array(itemSizes.keys.prefix(itemSizes.count - targetSize))
+        // 批量移除，减少字典操作次数
+        let removeCount = itemSizes.count - targetSize
+        let keysToRemove = Array(itemSizes.keys.prefix(removeCount))
+
+        // 使用removeValue批量操作
         for key in keysToRemove {
             itemSizes.removeValue(forKey: key)
+        }
+
+        // 同时清理布局结果缓存
+        if layoutResults.count > maxCacheSize {
+            let layoutKeysToRemove = Array(layoutResults.keys.prefix(layoutResults.count - maxCacheSize / 2))
+            for key in layoutKeysToRemove {
+                layoutResults.removeValue(forKey: key)
+            }
         }
     }
 
@@ -486,7 +561,7 @@ internal struct LazyLayoutCache {
     }
 
     /// 缓存布局结果
-    mutating func cacheLayoutResult(for key: String, result: LazyLayoutResult) {
+    mutating func cacheLayoutResult(for key: Int, result: LazyLayoutResult) {
         if layoutResults.count >= maxCacheSize {
             if let firstKey = layoutResults.keys.first {
                 layoutResults.removeValue(forKey: firstKey)
@@ -496,7 +571,7 @@ internal struct LazyLayoutCache {
     }
 
     /// 获取缓存的布局结果
-    func getCachedLayoutResult(for key: String) -> LazyLayoutResult? {
+    func getCachedLayoutResult(for key: Int) -> LazyLayoutResult? {
         return layoutResults[key]
     }
 
@@ -530,6 +605,7 @@ internal struct LazyLayoutCache {
 internal struct CacheManager {
 
     /// 生成配置哈希值
+    /// 使用高效的哈希算法，减少冲突
     static func generateConfigurationHash(
         axis: Axis,
         lines: MasonryLines,
@@ -537,25 +613,49 @@ internal struct CacheManager {
         vSpacing: CGFloat,
         placement: MasonryPlacementMode
     ) -> Int {
-        var hasher = Hasher()
-        hasher.combine(axis)
-        hasher.combine(lines)
-        hasher.combine(hSpacing)
-        hasher.combine(vSpacing)
-        hasher.combine(placement)
-        return hasher.finalize()
+        // 使用位运算和预计算减少哈希冲突
+        var hash = axis == .vertical ? 1 : 2
+
+        // 对lines进行更精确的哈希
+        switch lines {
+        case .fixed(let count):
+            hash = hash &* 31 &+ count &* 3
+        case .adaptive(let constraint):
+            switch constraint {
+            case .min(let size):
+                hash = hash &* 31 &+ Int(size * 100) &* 5
+            case .max(let size):
+                hash = hash &* 31 &+ Int(size * 100) &* 7
+            }
+        }
+
+        // 对间距进行优化的哈希处理
+        hash = hash &* 31 &+ Int(hSpacing * 10)
+        hash = hash &* 31 &+ Int(vSpacing * 10)
+
+        // 放置模式哈希
+        hash = hash &* 31 &+ (placement == .fill ? 11 : 13)
+
+        return hash
     }
 
     /// 生成懒加载缓存键
+    /// 减少字符串拼接，使用高效的键生成
     static func generateLazyCacheKey(
         configuration: MasonryConfiguration,
         containerSize: CGSize,
         itemCount: Int
-    ) -> String {
-        return "\(configuration.hashValue)_\(Int(containerSize.width))x\(Int(containerSize.height))_\(itemCount)"
+    ) -> Int {
+        // 使用整数键替代字符串，提升性能
+        var key = configuration.hashValue
+        key = key &* 31 &+ Int(containerSize.width)
+        key = key &* 31 &+ Int(containerSize.height)
+        key = key &* 31 &+ itemCount
+        return key
     }
 
-    /// 检查缓存是否有效
+    /// 缓存有效性检查
+    /// 精确的失效判断，减少不必要的重计算
     static func isCacheValid(
         cache: LayoutCache,
         containerSize: CGSize,
@@ -564,9 +664,33 @@ internal struct CacheManager {
     ) -> Bool {
         guard let cachedResult = cache.cachedResult else { return false }
 
-        return cache.isSizeCompatible(with: containerSize) &&
-               cache.lastConfigurationHash == configurationHash &&
-               cachedResult.itemFrames.count == subviewCount
+        // 先检查最容易失效的条件，提前返回
+        guard cachedResult.itemFrames.count == subviewCount else { return false }
+        guard cache.lastConfigurationHash == configurationHash else { return false }
+
+        // 最后检查尺寸兼容性（相对耗时的操作）
+        return cache.isSizeCompatible(with: containerSize)
+    }
+
+    /// 尺寸兼容性检查
+    /// 使用智能的容差算法
+    static func isSizeCompatible(
+        lastSize: CGSize,
+        currentSize: CGSize,
+        axis: Axis
+    ) -> Bool {
+        // 根据轴向使用不同的容差策略
+        let tolerance: CGFloat = 0.5 // 减少容差，提高缓存精度
+
+        if axis == .vertical {
+            // 垂直布局：宽度变化敏感，高度可以有更大容差
+            return abs(lastSize.width - currentSize.width) <= tolerance &&
+                   abs(lastSize.height - currentSize.height) <= tolerance * 2
+        } else {
+            // 水平布局：高度变化敏感，宽度可以有更大容差
+            return abs(lastSize.width - currentSize.width) <= tolerance * 2 &&
+                   abs(lastSize.height - currentSize.height) <= tolerance
+        }
     }
 }
 

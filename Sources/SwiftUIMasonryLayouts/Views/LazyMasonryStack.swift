@@ -201,37 +201,43 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
     /// 防抖滚动处理
     private func handleScrollChangeWithDebounce(_ newOffset: CGFloat) {
+        // 避免不必要的状态更新
+        guard abs(scrollOffset - newOffset) > 1.0 else { return }
+
         scrollOffset = newOffset
 
-        // 使用防抖避免过于频繁的触发检查
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        // 减少防抖延迟，提升响应性
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
             self.checkScrollTriggers()
         }
     }
 
     /// 检查滚动触发条件
     private func checkScrollTriggers() {
+        // 提前检查最容易失败的条件
+        guard !isUpdatingLayout && !isAsyncRendering else { return }
         guard contentHeight > 0 && viewportHeight > 0 else { return }
-        guard !isUpdatingLayout && !isAsyncRendering else { return } // 避免在布局更新或异步渲染时触发
 
-        let scrollProgress = max(0, scrollOffset) / max(contentHeight - viewportHeight, 1)
+        // 缓存计算结果，避免重复除法运算
+        let scrollableHeight = contentHeight - viewportHeight
+        guard scrollableHeight > 0 else { return }
 
-        // 底部触发检测
-        if scrollProgress >= configuration.bottomTriggerThreshold {
+        let scrollProgress = max(0, scrollOffset) / scrollableHeight
+
+        // 只有接近阈值时才进行精确计算
+        if scrollProgress >= (configuration.bottomTriggerThreshold - 0.05) {
             let currentTime = Date().timeIntervalSince1970
             let timeSinceLastTrigger = currentTime - lastBottomTriggerTime
 
-            if timeSinceLastTrigger >= configuration.debounceInterval {
+            if scrollProgress >= configuration.bottomTriggerThreshold &&
+               timeSinceLastTrigger >= configuration.debounceInterval {
                 lastBottomTriggerTime = currentTime
-                isUpdatingLayout = true // 标记正在更新
+                isUpdatingLayout = true
 
-                MasonryLogger.info("底部触发 - 滚动进度: \(Int(scrollProgress * 100))%")
-
-                // 异步处理数据加载，避免阻塞滚动
                 handleAsyncDataLoading()
 
-                // 延迟重置更新标记
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // 减少重置延迟，提升响应性
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.isUpdatingLayout = false
                 }
             }
@@ -240,20 +246,15 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
     /// 异步处理数据加载，优化滚动性能
     private func handleAsyncDataLoading() {
-        // 记录当前数据数量，用于检测数据变化
+        // 缓存当前数据数量，减少重复访问
         let currentDataCount = data.count
 
-        // 在后台队列触发数据加载
-        DispatchQueue.global(qos: .userInitiated).async {
-            // 触发数据加载回调
-            DispatchQueue.main.async {
-                self.onReachBottom?()
-            }
+        // 直接在主队列触发回调，减少队列切换开销
+        onReachBottom?()
 
-            // 监控数据变化并优化渲染
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.optimizeRenderingIfNeeded(previousCount: currentDataCount)
-            }
+        // 减少监控延迟，提升响应性
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            self.optimizeRenderingIfNeeded(previousCount: currentDataCount)
         }
     }
 
@@ -262,20 +263,14 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         let newDataCount = data.count
         let newItemsCount = newDataCount - previousCount
 
-        // 如果有新数据且数量较多，启用异步渲染优化
-        if newItemsCount > 5 {
+        // 调整阈值，减少不必要的异步渲染
+        if newItemsCount > 10 {
             isAsyncRendering = true
 
-            MasonryLogger.info("渲染优化启动 - 新增项目: \(newItemsCount)个")
-
-            // 分批渲染新内容，避免一次性渲染造成卡顿
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                MasonryLogger.info("渲染完成")
+            // 减少渲染延迟，提升用户体验
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
                 self.isAsyncRendering = false
             }
-        } else if newItemsCount > 0 {
-            // 少量新数据，直接渲染
-            MasonryLogger.info("快速渲染 - 新增: \(newItemsCount)个")
         }
     }
 }
