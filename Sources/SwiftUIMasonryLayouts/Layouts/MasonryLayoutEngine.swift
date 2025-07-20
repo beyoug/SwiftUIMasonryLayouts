@@ -371,8 +371,6 @@ public struct LayoutCache {
     var lastConfigurationHash: Int = 0
     /// 子视图数量
     var subviewCount: Int = 0
-    /// 上次计算时间
-    var lastCalculationTime: TimeInterval = 0
 
     // 🚀 优化：仅在DEBUG模式下统计缓存性能
     #if DEBUG
@@ -388,7 +386,6 @@ public struct LayoutCache {
         lastContainerSize = .zero
         lastConfigurationHash = 0
         subviewCount = 0
-        lastCalculationTime = 0
     }
 
     /// 检查尺寸是否兼容（允许小幅度变化）
@@ -427,15 +424,13 @@ public struct LayoutCache {
         CacheStatistics(
             hits: cacheHits,
             misses: cacheMisses,
-            hitRate: cacheHitRate,
-            lastCalculationTime: lastCalculationTime
+            hitRate: cacheHitRate
         )
         #else
         CacheStatistics(
             hits: 0,
             misses: 0,
-            hitRate: 0,
-            lastCalculationTime: lastCalculationTime
+            hitRate: 0
         )
         #endif
     }
@@ -450,8 +445,6 @@ public struct CacheStatistics {
     public let misses: Int
     /// 缓存命中率
     public let hitRate: Double
-    /// 上次计算时间（秒）
-    public let lastCalculationTime: TimeInterval
 
     /// 总请求次数
     public var totalRequests: Int { hits + misses }

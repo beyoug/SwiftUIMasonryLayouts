@@ -213,8 +213,6 @@ public struct MasonryLayout: Layout, Sendable {
 
     /// 执行布局计算
     private func performLayoutCalculation(containerSize: CGSize, subviews: Subviews, cache: inout LayoutCache) -> LayoutResult {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         // 确保缓存是最新的
         updateCache(&cache, subviews: subviews)
 
@@ -246,8 +244,6 @@ public struct MasonryLayout: Layout, Sendable {
         )
 
         // 缓存结果
-        let endTime = CFAbsoluteTimeGetCurrent()
-        cache.lastCalculationTime = endTime - startTime
         cache.cachedResult = result
         cache.lastContainerSize = containerSize
         cache.lastConfigurationHash = configurationHash

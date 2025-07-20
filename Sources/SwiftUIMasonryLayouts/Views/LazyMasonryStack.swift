@@ -262,9 +262,6 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
         let newDataCount = data.count
         let newItemsCount = newDataCount - previousCount
 
-        // 性能监控：记录渲染开始时间
-        let renderStartTime = CFAbsoluteTimeGetCurrent()
-
         // 如果有新数据且数量较多，启用异步渲染优化
         if newItemsCount > 5 {
             isAsyncRendering = true
@@ -273,14 +270,12 @@ public struct LazyMasonryStack<Data: RandomAccessCollection, ID: Hashable, Conte
 
             // 分批渲染新内容，避免一次性渲染造成卡顿
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                let renderDuration = CFAbsoluteTimeGetCurrent() - renderStartTime
-                MasonryLogger.info("渲染完成 - 耗时: \(String(format: "%.2f", renderDuration * 1000))ms")
+                MasonryLogger.info("渲染完成")
                 self.isAsyncRendering = false
             }
         } else if newItemsCount > 0 {
             // 少量新数据，直接渲染
-            let renderDuration = CFAbsoluteTimeGetCurrent() - renderStartTime
-            MasonryLogger.info("快速渲染 - 新增: \(newItemsCount)个, 耗时: \(String(format: "%.2f", renderDuration * 1000))ms")
+            MasonryLogger.info("快速渲染 - 新增: \(newItemsCount)个")
         }
     }
 }

@@ -25,8 +25,7 @@ let package = Package(
             dependencies: [],
             swiftSettings: [
                 // 只保留在 Swift 6 中仍然需要显式启用的功能
-                .enableUpcomingFeature("StrictConcurrency"),
-                .enableExperimentalFeature("AccessLevelOnImport")
+                .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
