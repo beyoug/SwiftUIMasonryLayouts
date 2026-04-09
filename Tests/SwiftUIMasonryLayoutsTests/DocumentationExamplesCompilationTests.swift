@@ -1,7 +1,6 @@
 import SwiftUI
 import XCTest
 import SwiftUIMasonryLayouts
-@testable import SwiftUIMasonryLayoutsExamples
 
 @available(iOS 26.0, *)
 final class DocumentationExamplesCompilationTests: XCTestCase {
@@ -33,11 +32,5 @@ final class DocumentationExamplesCompilationTests: XCTestCase {
         }
 
         XCTAssertTrue(true)
-    }
-
-    @MainActor
-    func test_examples_target_compiles() {
-        let _ = MasonryStackExample()
-        XCTAssertEqual(SampleTestData.tiles.count, 6)
     }
 }

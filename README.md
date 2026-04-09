@@ -42,7 +42,14 @@ MasonryLayout(
 
 ## Examples
 
-Example source files live in the repository's root `Examples/` directory. They are for preview and demonstration only and are not part of the published library product.
+Use the local Example App at `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp.xcodeproj` to preview and run the demo UI.
+
+- Open `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp.xcodeproj`
+- Select the `SwiftUIMasonryLayoutsExamplesApp` scheme
+- Open `MasonryStackExample.swift`
+- Use Canvas / `#Preview` or run the app in iOS Simulator
+
+The Example App is for local preview and demonstration only and is not part of the published package product.
 
 ## Documentation
 
