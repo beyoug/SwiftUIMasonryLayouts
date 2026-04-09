@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 
 /**
 *  SwiftUIMasonryLayouts
@@ -11,7 +11,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftUIMasonryLayouts",
     platforms: [
-        .iOS(.v18)
+        .iOS(.v26)
     ],
     products: [
         .library(
@@ -28,9 +28,17 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
+        .target(
+            name: "SwiftUIMasonryLayoutsExamples",
+            dependencies: ["SwiftUIMasonryLayouts"],
+            path: "Examples"
+        ),
         .testTarget(
             name: "SwiftUIMasonryLayoutsTests",
-            dependencies: ["SwiftUIMasonryLayouts"]
+            dependencies: [
+                "SwiftUIMasonryLayouts",
+                "SwiftUIMasonryLayoutsExamples"
+            ]
         )
     ]
 )
