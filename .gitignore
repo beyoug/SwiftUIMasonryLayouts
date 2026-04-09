@@ -18,3 +18,4 @@ DerivedData/
 # Temporary files
 *.tmp
 *.log
+.worktrees
