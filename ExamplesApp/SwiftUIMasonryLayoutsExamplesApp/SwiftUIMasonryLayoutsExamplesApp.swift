@@ -4,7 +4,7 @@ import SwiftUI
 struct SwiftUIMasonryLayoutsExamplesApp: App {
     var body: some Scene {
         WindowGroup {
-            MasonryStackExample()
+            ExamplesHomeView()
         }
     }
 }
