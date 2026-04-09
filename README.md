@@ -46,8 +46,11 @@ Use the local Example App at `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp.xcode
 
 - Open `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp.xcodeproj`
 - Select the `SwiftUIMasonryLayoutsExamplesApp` scheme
-- Open `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp/MasonryStackExample.swift`
-- Use Canvas / `#Preview` or run the app in iOS Simulator
+- Open `ExamplesHomeView.swift` to preview the scenario list
+- Open any page in `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp/Examples/` for focused previews
+- Run the app in iOS Simulator to browse all scenarios
+
+The Example App includes scenario pages for fixed columns, horizontal rows, adaptive tracks, placement comparison, direct `MasonryLayout` usage, and edge cases.
 
 The Example App is for local preview and demonstration only and is not part of the published package product.
 
