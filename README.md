@@ -46,7 +46,7 @@ Use the local Example App at `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp.xcode
 
 - Open `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp.xcodeproj`
 - Select the `SwiftUIMasonryLayoutsExamplesApp` scheme
-- Open `MasonryStackExample.swift`
+- Open `ExamplesApp/SwiftUIMasonryLayoutsExamplesApp/MasonryStackExample.swift`
 - Use Canvas / `#Preview` or run the app in iOS Simulator
 
 The Example App is for local preview and demonstration only and is not part of the published package product.
