@@ -16,14 +16,21 @@ public struct MasonryStack<Content: View>: View {
 }
 ```
 
+`MasonryStack` is the preferred view-based API. The explicit initializer forwards `axis`, `tracks`, `spacing`, and `placement` directly to `MasonryLayout`.
+
 Convenience initializers:
 
 ```swift
-init(columns: Int, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
-init(rows: Int, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
-init(adaptiveColumns minimum: CGFloat, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
-init(adaptiveRows minimum: CGFloat, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
+public init(columns: Int, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
+public init(rows: Int, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
+public init(adaptiveColumns minimum: CGFloat, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
+public init(adaptiveRows minimum: CGFloat, spacing: CGFloat = 8, placement: MasonryPlacement = .shortestFirst, @ViewBuilder content: @escaping () -> Content)
 ```
+
+- `columns` maps to `axis: .vertical` with `tracks: .fixed(columns)`
+- `rows` maps to `axis: .horizontal` with `tracks: .fixed(rows)`
+- `adaptiveColumns` maps to `axis: .vertical` with `tracks: .adaptive(min: minimum)`
+- `adaptiveRows` maps to `axis: .horizontal` with `tracks: .adaptive(min: minimum)`
 
 ### MasonryLayout
 
@@ -37,6 +44,8 @@ public struct MasonryLayout: Layout {
     )
 }
 ```
+
+Use `MasonryLayout` when another container needs the raw `Layout` type instead of the `MasonryStack` view wrapper.
 
 ### MasonryTracks
 
@@ -55,3 +64,6 @@ public enum MasonryPlacement: Hashable, Sendable {
     case sequential
 }
 ```
+
+- `.shortestFirst` assigns each item to the currently shortest column or row
+- `.sequential` assigns items by input order

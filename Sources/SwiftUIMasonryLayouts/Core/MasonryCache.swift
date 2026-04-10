@@ -2,9 +2,9 @@ import CoreGraphics
 import SwiftUI
 
 @available(iOS 26.0, *)
-internal struct MasonryCacheKey: Equatable {
-    let containerSize: CGSize
+internal struct MasonryLayoutCacheKey: Equatable {
     let axis: Axis
+    let crossAxisLength: CGFloat
     let tracks: MasonryTracks
     let spacing: CGFloat
     let placement: MasonryPlacement
@@ -12,50 +12,35 @@ internal struct MasonryCacheKey: Equatable {
     let measurementSignature: [CGSize]
 
     init(
-        containerSize: CGSize,
         axis: Axis,
+        crossAxisLength: CGFloat,
         tracks: MasonryTracks,
         spacing: CGFloat,
         placement: MasonryPlacement,
         subviewCount: Int,
         measurementSignature: [CGSize] = []
     ) {
-        self.containerSize = containerSize
         self.axis = axis
+        self.crossAxisLength = MasonryValidation.normalizedLength(crossAxisLength)
         self.tracks = tracks
         self.spacing = spacing
         self.placement = placement
         self.subviewCount = subviewCount
         self.measurementSignature = measurementSignature
     }
-
-    static func == (lhs: MasonryCacheKey, rhs: MasonryCacheKey) -> Bool {
-        lhs.axis == rhs.axis
-            && lhs.crossAxisLength == rhs.crossAxisLength
-            && lhs.tracks == rhs.tracks
-            && lhs.spacing == rhs.spacing
-            && lhs.placement == rhs.placement
-            && lhs.subviewCount == rhs.subviewCount
-            && lhs.measurementSignature == rhs.measurementSignature
-    }
-
-    private var crossAxisLength: CGFloat {
-        let rawCrossAxisLength = axis == .vertical ? containerSize.width : containerSize.height
-        return MasonryValidation.normalizedLength(rawCrossAxisLength)
-    }
 }
 
 @available(iOS 26.0, *)
-internal struct MasonryCache {
-    private var key: MasonryCacheKey?
+internal struct MasonryLayoutCache {
+    private var key: MasonryLayoutCacheKey?
     private var cachedResult: MasonryLayoutResult?
 
-    mutating func store(_ result: MasonryLayoutResult, for key: MasonryCacheKey) {
+    mutating func store(_ result: MasonryLayoutResult, for key: MasonryLayoutCacheKey) {
         self.key = key
         self.cachedResult = result
     }
 
-    func result(for key: MasonryCacheKey) -> MasonryLayoutResult? {
+    func result(for key: MasonryLayoutCacheKey) -> MasonryLayoutResult? {
         guard self.key == key else { return nil }
         return cachedResult
     }

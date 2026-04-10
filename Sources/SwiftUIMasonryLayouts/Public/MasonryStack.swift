@@ -1,5 +1,7 @@
 import SwiftUI
 
+public typealias Axis = SwiftUI.Axis
+
 @available(iOS 26.0, *)
 public struct MasonryStack<Content: View>: View {
     private let axis: Axis

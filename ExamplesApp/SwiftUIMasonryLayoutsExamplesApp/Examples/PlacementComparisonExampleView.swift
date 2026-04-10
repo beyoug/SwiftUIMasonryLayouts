@@ -7,7 +7,7 @@ struct PlacementComparisonExampleView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Compare shortestFirst and sequential placement with the same data.")
+                Text("Compare `.shortestFirst` balancing with `.sequential` index-order placement using the same data.")
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 12) {
