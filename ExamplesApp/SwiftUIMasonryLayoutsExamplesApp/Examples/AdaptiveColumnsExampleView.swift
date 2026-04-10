@@ -7,7 +7,7 @@ struct AdaptiveColumnsExampleView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Adaptive columns resize based on available width.")
+                Text("Adaptive columns resolve from a minimum track width of 140 points as available width changes.")
                     .foregroundStyle(.secondary)
 
                 MasonryStack(adaptiveColumns: 140, spacing: 10) {
@@ -19,7 +19,7 @@ struct AdaptiveColumnsExampleView: View {
                     }
                 }
 
-                Text("adaptiveColumns: 140, spacing: 10, placement: shortestFirst")
+                Text("MasonryStack(adaptiveColumns: 140, spacing: 10, placement: .shortestFirst)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

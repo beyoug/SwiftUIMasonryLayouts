@@ -7,7 +7,7 @@ struct BasicMasonryExampleView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Basic fixed-column masonry using two columns and 12pt spacing.")
+                Text("Basic fixed-column masonry using the `columns:` convenience initializer with two columns and 12pt spacing.")
                     .foregroundStyle(.secondary)
 
                 MasonryStack(columns: 2, spacing: 12) {
@@ -19,7 +19,7 @@ struct BasicMasonryExampleView: View {
                     }
                 }
 
-                Text("columns: 2, spacing: 12, placement: shortestFirst")
+                Text("MasonryStack(columns: 2, spacing: 12, placement: .shortestFirst)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

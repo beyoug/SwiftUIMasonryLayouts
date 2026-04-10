@@ -4,9 +4,9 @@ import XCTest
 @available(iOS 26.0, *)
 final class MasonryLayoutCacheTests: XCTestCase {
     func test_cache_hits_when_key_is_identical() {
-        let key = MasonryCacheKey(
-            containerSize: CGSize(width: 320, height: 640),
+        let key = MasonryLayoutCacheKey(
             axis: .vertical,
+            crossAxisLength: 320,
             tracks: .fixed(2),
             spacing: 8,
             placement: .shortestFirst,
@@ -18,60 +18,96 @@ final class MasonryLayoutCacheTests: XCTestCase {
             contentSize: CGSize(width: 320, height: 100)
         )
 
-        var cache = MasonryCache()
+        var cache = MasonryLayoutCache()
         cache.store(result, for: key)
 
         XCTAssertEqual(cache.result(for: key), result)
     }
 
     func test_cache_invalidates_when_width_changes() {
-        let cachedKey = MasonryCacheKey(
-            containerSize: CGSize(width: 320, height: 640),
+        let cachedKey = MasonryLayoutCacheKey(
             axis: .vertical,
+            crossAxisLength: 320,
             tracks: .fixed(2),
             spacing: 8,
             placement: .shortestFirst,
             subviewCount: 4
         )
 
-        let queryKey = MasonryCacheKey(
-            containerSize: CGSize(width: 375, height: 640),
+        let queryKey = MasonryLayoutCacheKey(
             axis: .vertical,
+            crossAxisLength: 375,
             tracks: .fixed(2),
             spacing: 8,
             placement: .shortestFirst,
             subviewCount: 4
         )
 
-        var cache = MasonryCache()
+        var cache = MasonryLayoutCache()
         cache.store(.empty, for: cachedKey)
 
         XCTAssertNil(cache.result(for: queryKey))
     }
 
     func test_cache_invalidates_when_subview_count_changes() {
-        let cachedKey = MasonryCacheKey(
-            containerSize: CGSize(width: 320, height: 640),
+        let cachedKey = MasonryLayoutCacheKey(
             axis: .vertical,
+            crossAxisLength: 320,
             tracks: .fixed(2),
             spacing: 8,
             placement: .shortestFirst,
             subviewCount: 4
         )
 
-        let queryKey = MasonryCacheKey(
-            containerSize: CGSize(width: 320, height: 640),
+        let queryKey = MasonryLayoutCacheKey(
             axis: .vertical,
+            crossAxisLength: 320,
             tracks: .fixed(2),
             spacing: 8,
             placement: .shortestFirst,
             subviewCount: 5
         )
 
-        var cache = MasonryCache()
+        var cache = MasonryLayoutCache()
         cache.store(.empty, for: cachedKey)
 
         XCTAssertNil(cache.result(for: queryKey))
+    }
+
+    func test_layout_cache_key_does_not_depend_on_measurement_phase_magic_height() {
+        let measurementKey = MasonryLayoutCacheKey(
+            axis: .vertical,
+            crossAxisLength: 320,
+            tracks: .fixed(2),
+            spacing: 8,
+            placement: .shortestFirst,
+            subviewCount: 3,
+            measurementSignature: [CGSize(width: 156, height: 120)]
+        )
+        let placementKey = MasonryLayoutCacheKey(
+            axis: .vertical,
+            crossAxisLength: 320,
+            tracks: .fixed(2),
+            spacing: 8,
+            placement: .shortestFirst,
+            subviewCount: 3,
+            measurementSignature: [CGSize(width: 156, height: 120)]
+        )
+
+        XCTAssertEqual(measurementKey, placementKey)
+    }
+
+    func test_measurement_cache_signature_can_be_compared_without_layout_metadata() {
+        let lhs = [
+            MasonryMeasurement(axis: .vertical, trackSize: 156, measuredSize: CGSize(width: 156, height: 120)).normalizedSize,
+            MasonryMeasurement(axis: .vertical, trackSize: 156, measuredSize: CGSize(width: 156, height: 80)).normalizedSize
+        ]
+        let rhs = [
+            MasonryMeasurement(axis: .vertical, trackSize: 156, measuredSize: CGSize(width: 156, height: 120)).normalizedSize,
+            MasonryMeasurement(axis: .vertical, trackSize: 156, measuredSize: CGSize(width: 156, height: 80)).normalizedSize
+        ]
+
+        XCTAssertEqual(lhs, rhs)
     }
 
     func test_measurement_cache_is_reused_when_placement_uses_measured_content_height() {
@@ -101,9 +137,9 @@ final class MasonryLayoutCacheTests: XCTestCase {
             CGSize(width: measurementMetrics.trackSize, height: 80),
             CGSize(width: measurementMetrics.trackSize, height: 60)
         ]
-        let measurementKey = MasonryCacheKey(
-            containerSize: measurementMetrics.containerSize,
+        let measurementKey = MasonryLayoutCacheKey(
             axis: layout.axis,
+            crossAxisLength: measurementMetrics.containerSize.width,
             tracks: layout.tracks,
             spacing: measurementMetrics.spacing,
             placement: layout.placement,
@@ -116,9 +152,9 @@ final class MasonryLayoutCacheTests: XCTestCase {
             tracks: layout.tracks,
             spacing: layout.spacing
         )
-        let placementKey = MasonryCacheKey(
-            containerSize: placementMetrics.containerSize,
+        let placementKey = MasonryLayoutCacheKey(
             axis: layout.axis,
+            crossAxisLength: placementMetrics.containerSize.width,
             tracks: layout.tracks,
             spacing: placementMetrics.spacing,
             placement: layout.placement,
@@ -126,7 +162,7 @@ final class MasonryLayoutCacheTests: XCTestCase {
             measurementSignature: measurementSignature
         )
 
-        var cache = MasonryCache()
+        var cache = MasonryLayoutCache()
         cache.store(measuredResult, for: measurementKey)
 
         XCTAssertEqual(
@@ -177,18 +213,18 @@ final class MasonryLayoutCacheTests: XCTestCase {
             CGSize(width: metrics.trackSize, height: 200),
             CGSize(width: metrics.trackSize, height: 60)
         ]
-        let cachedKey = MasonryCacheKey(
-            containerSize: metrics.containerSize,
+        let cachedKey = MasonryLayoutCacheKey(
             axis: layout.axis,
+            crossAxisLength: metrics.containerSize.width,
             tracks: layout.tracks,
             spacing: metrics.spacing,
             placement: layout.placement,
             subviewCount: 3,
             measurementSignature: cachedSignature
         )
-        let updatedKey = MasonryCacheKey(
-            containerSize: metrics.containerSize,
+        let updatedKey = MasonryLayoutCacheKey(
             axis: layout.axis,
+            crossAxisLength: metrics.containerSize.width,
             tracks: layout.tracks,
             spacing: metrics.spacing,
             placement: layout.placement,
@@ -198,7 +234,7 @@ final class MasonryLayoutCacheTests: XCTestCase {
 
         XCTAssertNotEqual(cachedResult, updatedResult)
 
-        var cache = MasonryCache()
+        var cache = MasonryLayoutCache()
         cache.store(cachedResult, for: cachedKey)
 
         XCTAssertNil(

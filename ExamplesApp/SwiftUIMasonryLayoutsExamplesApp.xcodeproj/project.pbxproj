@@ -7,35 +7,35 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1B2C3D4E5F60718293A4B5C /* ExamplesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* ExamplesHomeView.swift */; };
-		C10100000000000000000005 /* BasicMasonryExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10100000000000000000006 /* BasicMasonryExampleView.swift */; };
-		C10100000000000000000007 /* HorizontalRowsExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10100000000000000000008 /* HorizontalRowsExampleView.swift */; };
-		C10100000000000000000009 /* AdaptiveColumnsExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1010000000000000000000A /* AdaptiveColumnsExampleView.swift */; };
-		C1010000000000000000000B /* AdaptiveRowsExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1010000000000000000000C /* AdaptiveRowsExampleView.swift */; };
-		C1010000000000000000000D /* PlacementComparisonExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1010000000000000000000E /* PlacementComparisonExampleView.swift */; };
-		C1010000000000000000000F /* DirectLayoutExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10100000000000000000010 /* DirectLayoutExampleView.swift */; };
-		C10100000000000000000011 /* EdgeCasesExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10100000000000000000012 /* EdgeCasesExampleView.swift */; };
-		C10100000000000000000003 /* ExampleTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10100000000000000000001 /* ExampleTile.swift */; };
-		C10100000000000000000004 /* ExampleTileData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10100000000000000000002 /* ExampleTileData.swift */; };
+		06FF50D94B2039827F7383C4 /* ExampleTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CC8E7A64458778B8A5A3FD6 /* ExampleTile.swift */; };
+		2D301650AA598B3F0C42BA74 /* DirectLayoutExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08B38B8E107CB2757689D5A /* DirectLayoutExampleView.swift */; };
 		2DFB5982B9DC6A3D1BCCB012 /* SwiftUIMasonryLayouts in Frameworks */ = {isa = PBXBuildFile; productRef = C4E3D71E457FB2EFE4C601DD /* SwiftUIMasonryLayouts */; };
+		30A0B48BD014E6290E2BAFA6 /* AdaptiveRowsExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2D10B64D2ED3A1A4504B7A /* AdaptiveRowsExampleView.swift */; };
 		443E5DA174E2E493D9CB0C85 /* SwiftUIMasonryLayoutsExamplesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 093A2E42FB1A8AA3C49C83E3 /* SwiftUIMasonryLayoutsExamplesApp.swift */; };
+		6D2845CE0775D9E20277F793 /* BasicMasonryExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A72D78F26B1B400A4E318B3 /* BasicMasonryExampleView.swift */; };
+		A9D3163857B712BE466B281F /* PlacementComparisonExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1109F17A8D61481A0345910 /* PlacementComparisonExampleView.swift */; };
+		B2FBE245D88708F868CF8B2A /* HorizontalRowsExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2B1A47938F30E8E03A6CDA /* HorizontalRowsExampleView.swift */; };
+		C8735629D5DBCF7F446EA097 /* AdaptiveColumnsExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CECDABB65F72E3922453914 /* AdaptiveColumnsExampleView.swift */; };
+		D3C70D37EDE459E6FB672AF1 /* ExampleTileData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94E18BCF4D0F14EF93F2109 /* ExampleTileData.swift */; };
+		DE8BA0CE8A70E4446D6D2D15 /* ExamplesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83A3436025A28FA73B0DA2E /* ExamplesHomeView.swift */; };
+		E9E0C5858327CE7A11CBBC20 /* EdgeCasesExampleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1E823E86B30EA41F52A9267 /* EdgeCasesExampleView.swift */; };
 		ED840886D358B1FA263FBD1E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FD7E0C00C7A8C0CD6C2CC46C /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		093A2E42FB1A8AA3C49C83E3 /* SwiftUIMasonryLayoutsExamplesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIMasonryLayoutsExamplesApp.swift; sourceTree = "<group>"; };
-		4F4DB3EAEB5E164C88C3418A /* example-app-scenarios */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "example-app-scenarios"; path = ..; sourceTree = SOURCE_ROOT; };
+		1CC8E7A64458778B8A5A3FD6 /* ExampleTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleTile.swift; sourceTree = "<group>"; };
+		4CECDABB65F72E3922453914 /* AdaptiveColumnsExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveColumnsExampleView.swift; sourceTree = "<group>"; };
 		53BEF78D9D40B4C5148783D1 /* SwiftUIMasonryLayoutsExamplesApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SwiftUIMasonryLayoutsExamplesApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B1C2D3E4F5061728394A5B6C /* ExamplesHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamplesHomeView.swift; sourceTree = "<group>"; };
-		C10100000000000000000001 /* ExampleTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ExampleTile.swift; sourceTree = "<group>"; };
-		C10100000000000000000002 /* ExampleTileData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/ExampleTileData.swift; sourceTree = "<group>"; };
-		C10100000000000000000006 /* BasicMasonryExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/BasicMasonryExampleView.swift; sourceTree = "<group>"; };
-		C10100000000000000000008 /* HorizontalRowsExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/HorizontalRowsExampleView.swift; sourceTree = "<group>"; };
-		C1010000000000000000000A /* AdaptiveColumnsExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/AdaptiveColumnsExampleView.swift; sourceTree = "<group>"; };
-		C1010000000000000000000C /* AdaptiveRowsExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/AdaptiveRowsExampleView.swift; sourceTree = "<group>"; };
-		C1010000000000000000000E /* PlacementComparisonExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/PlacementComparisonExampleView.swift; sourceTree = "<group>"; };
-		C10100000000000000000010 /* DirectLayoutExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/DirectLayoutExampleView.swift; sourceTree = "<group>"; };
-		C10100000000000000000012 /* EdgeCasesExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/EdgeCasesExampleView.swift; sourceTree = "<group>"; };
+		61D690C8E094B995346BF472 /* native-stability-optimization */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "native-stability-optimization"; path = ..; sourceTree = SOURCE_ROOT; };
+		9A72D78F26B1B400A4E318B3 /* BasicMasonryExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicMasonryExampleView.swift; sourceTree = "<group>"; };
+		9D2B1A47938F30E8E03A6CDA /* HorizontalRowsExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HorizontalRowsExampleView.swift; sourceTree = "<group>"; };
+		B1109F17A8D61481A0345910 /* PlacementComparisonExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacementComparisonExampleView.swift; sourceTree = "<group>"; };
+		C1E823E86B30EA41F52A9267 /* EdgeCasesExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesExampleView.swift; sourceTree = "<group>"; };
+		E08B38B8E107CB2757689D5A /* DirectLayoutExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectLayoutExampleView.swift; sourceTree = "<group>"; };
+		E83A3436025A28FA73B0DA2E /* ExamplesHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamplesHomeView.swift; sourceTree = "<group>"; };
+		E94E18BCF4D0F14EF93F2109 /* ExampleTileData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleTileData.swift; sourceTree = "<group>"; };
+		EC2D10B64D2ED3A1A4504B7A /* AdaptiveRowsExampleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveRowsExampleView.swift; sourceTree = "<group>"; };
 		FD7E0C00C7A8C0CD6C2CC46C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FF3A1576654DC50A40C18FD5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -56,18 +56,12 @@
 			isa = PBXGroup;
 			children = (
 				FD7E0C00C7A8C0CD6C2CC46C /* Assets.xcassets */,
+				E83A3436025A28FA73B0DA2E /* ExamplesHomeView.swift */,
 				FF3A1576654DC50A40C18FD5 /* Info.plist */,
-				B1C2D3E4F5061728394A5B6C /* ExamplesHomeView.swift */,
-				C10100000000000000000001 /* ExampleTile.swift */,
-				C10100000000000000000002 /* ExampleTileData.swift */,
-				C10100000000000000000006 /* BasicMasonryExampleView.swift */,
-				C10100000000000000000008 /* HorizontalRowsExampleView.swift */,
-				C1010000000000000000000A /* AdaptiveColumnsExampleView.swift */,
-				C1010000000000000000000C /* AdaptiveRowsExampleView.swift */,
-				C1010000000000000000000E /* PlacementComparisonExampleView.swift */,
-				C10100000000000000000010 /* DirectLayoutExampleView.swift */,
-				C10100000000000000000012 /* EdgeCasesExampleView.swift */,
 				093A2E42FB1A8AA3C49C83E3 /* SwiftUIMasonryLayoutsExamplesApp.swift */,
+				5F7EF80B9F1346C28B079D7A /* Data */,
+				6274CECC522797D121C2ED4A /* Examples */,
+				94A06D9943D0F525BE4B2B76 /* Models */,
 			);
 			path = SwiftUIMasonryLayoutsExamplesApp;
 			sourceTree = "<group>";
@@ -75,7 +69,7 @@
 		29A14798EE91880E6F0857DA /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				4F4DB3EAEB5E164C88C3418A /* example-app-scenarios */,
+				61D690C8E094B995346BF472 /* native-stability-optimization */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -87,6 +81,36 @@
 				1D9C638F9EE7F044400FFC45 /* SwiftUIMasonryLayoutsExamplesApp */,
 				AE33CBE143509E39A7845387 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		5F7EF80B9F1346C28B079D7A /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				E94E18BCF4D0F14EF93F2109 /* ExampleTileData.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		6274CECC522797D121C2ED4A /* Examples */ = {
+			isa = PBXGroup;
+			children = (
+				4CECDABB65F72E3922453914 /* AdaptiveColumnsExampleView.swift */,
+				EC2D10B64D2ED3A1A4504B7A /* AdaptiveRowsExampleView.swift */,
+				9A72D78F26B1B400A4E318B3 /* BasicMasonryExampleView.swift */,
+				E08B38B8E107CB2757689D5A /* DirectLayoutExampleView.swift */,
+				C1E823E86B30EA41F52A9267 /* EdgeCasesExampleView.swift */,
+				9D2B1A47938F30E8E03A6CDA /* HorizontalRowsExampleView.swift */,
+				B1109F17A8D61481A0345910 /* PlacementComparisonExampleView.swift */,
+			);
+			path = Examples;
+			sourceTree = "<group>";
+		};
+		94A06D9943D0F525BE4B2B76 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1CC8E7A64458778B8A5A3FD6 /* ExampleTile.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		AE33CBE143509E39A7845387 /* Products */ = {
@@ -173,16 +197,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C10100000000000000000009 /* AdaptiveColumnsExampleView.swift in Sources */,
-				C1010000000000000000000B /* AdaptiveRowsExampleView.swift in Sources */,
-				C1010000000000000000000D /* PlacementComparisonExampleView.swift in Sources */,
-				C1010000000000000000000F /* DirectLayoutExampleView.swift in Sources */,
-				C10100000000000000000011 /* EdgeCasesExampleView.swift in Sources */,
-				A1B2C3D4E5F60718293A4B5C /* ExamplesHomeView.swift in Sources */,
-				C10100000000000000000005 /* BasicMasonryExampleView.swift in Sources */,
-				C10100000000000000000003 /* ExampleTile.swift in Sources */,
-				C10100000000000000000004 /* ExampleTileData.swift in Sources */,
-				C10100000000000000000007 /* HorizontalRowsExampleView.swift in Sources */,
+				C8735629D5DBCF7F446EA097 /* AdaptiveColumnsExampleView.swift in Sources */,
+				30A0B48BD014E6290E2BAFA6 /* AdaptiveRowsExampleView.swift in Sources */,
+				6D2845CE0775D9E20277F793 /* BasicMasonryExampleView.swift in Sources */,
+				2D301650AA598B3F0C42BA74 /* DirectLayoutExampleView.swift in Sources */,
+				E9E0C5858327CE7A11CBBC20 /* EdgeCasesExampleView.swift in Sources */,
+				06FF50D94B2039827F7383C4 /* ExampleTile.swift in Sources */,
+				D3C70D37EDE459E6FB672AF1 /* ExampleTileData.swift in Sources */,
+				DE8BA0CE8A70E4446D6D2D15 /* ExamplesHomeView.swift in Sources */,
+				B2FBE245D88708F868CF8B2A /* HorizontalRowsExampleView.swift in Sources */,
+				A9D3163857B712BE466B281F /* PlacementComparisonExampleView.swift in Sources */,
 				443E5DA174E2E493D9CB0C85 /* SwiftUIMasonryLayoutsExamplesApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

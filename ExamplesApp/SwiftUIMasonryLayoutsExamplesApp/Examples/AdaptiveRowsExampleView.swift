@@ -7,7 +7,7 @@ struct AdaptiveRowsExampleView: View {
     var body: some View {
         ScrollView(.horizontal) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Adaptive rows resize based on available height.")
+                Text("Adaptive rows resolve from a minimum track height of 96 points as available height changes.")
                     .foregroundStyle(.secondary)
 
                 MasonryStack(adaptiveRows: 96, spacing: 8) {
@@ -19,7 +19,7 @@ struct AdaptiveRowsExampleView: View {
                     }
                 }
 
-                Text("adaptiveRows: 96, spacing: 8, placement: shortestFirst")
+                Text("MasonryStack(adaptiveRows: 96, spacing: 8, placement: .shortestFirst)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
