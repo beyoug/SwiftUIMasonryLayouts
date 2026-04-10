@@ -27,7 +27,11 @@ MasonryStack(columns: 2, spacing: 12) {
 }
 ```
 
+`MasonryStack` is the preferred view-based entry point. `columns` and `adaptiveColumns` map to a vertical layout, while `rows` and `adaptiveRows` map to a horizontal layout.
+
 ### Direct `Layout` Usage
+
+Use `MasonryLayout` directly when you need a raw `Layout` value with the same `axis`, `tracks`, `spacing`, and `placement` semantics.
 
 ```swift
 MasonryLayout(

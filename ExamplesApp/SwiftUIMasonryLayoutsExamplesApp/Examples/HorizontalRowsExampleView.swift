@@ -7,7 +7,7 @@ struct HorizontalRowsExampleView: View {
     var body: some View {
         ScrollView(.horizontal) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Horizontal masonry using rows.")
+                Text("Horizontal masonry using the `rows:` convenience initializer for two fixed rows.")
                     .foregroundStyle(.secondary)
 
                 MasonryStack(rows: 2, spacing: 12) {
@@ -19,7 +19,7 @@ struct HorizontalRowsExampleView: View {
                     }
                 }
 
-                Text("rows: 2, spacing: 12, placement: shortestFirst")
+                Text("MasonryStack(rows: 2, spacing: 12, placement: .shortestFirst)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

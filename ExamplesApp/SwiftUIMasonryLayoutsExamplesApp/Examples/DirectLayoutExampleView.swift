@@ -7,7 +7,7 @@ struct DirectLayoutExampleView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("This example uses MasonryLayout directly instead of MasonryStack.")
+                Text("This example uses `MasonryLayout` directly when you need the raw `Layout` API instead of the `MasonryStack` view wrapper.")
                     .foregroundStyle(.secondary)
 
                 MasonryLayout(
@@ -24,7 +24,7 @@ struct DirectLayoutExampleView: View {
                     }
                 }
 
-                Text("MasonryLayout(axis: .vertical, tracks: .adaptive(min: 160), spacing: 12)")
+                Text("MasonryLayout(axis: .vertical, tracks: .adaptive(min: 160), spacing: 12, placement: .shortestFirst)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
